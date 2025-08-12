@@ -540,28 +540,55 @@ TeleportTab:CreateParagraph({
     Content = "Teleport instantly to any fishing location or shop. Updated coordinates for all areas!"
 })
 
--- Fish It accurate teleport locations
+-- Fish It accurate teleport locations (Updated 2025)
 local teleportLocations = {
-    -- Main Areas
+    -- === MAIN SHOPS & NPCs ===
     ["🏠 Spawn"] = {x = 1, y = 18, z = 134},
-    ["🏪 Shop (Alex)"] = {x = -28.43, y = 4.50, z = 2891.28},
-    ["🏪 Shop (Joe)"] = {x = 112.01, y = 4.75, z = 2877.32},
-    ["🏪 Shop (Seth)"] = {x = 72.02, y = 4.58, z = 2885.28},
+    ["🛒 Shop (Alex)"] = {x = -31.10, y = 4.84, z = 2899.03},
+    ["🛒 Shop (Joe)"] = {x = 114.39, y = 4.75, z = 2882.38},
+    ["🛒 Shop (Seth)"] = {x = 70.96, y = 4.84, z = 2895.36},
     ["🎣 Rod Shop (Marc)"] = {x = 454, y = 150, z = 229},
-    ["⚓ Shipwright"] = {x = 343, y = 135, z = 271},
     ["📦 Storage (Henry)"] = {x = 491, y = 150, z = 272},
+    ["🏆 Angler"] = {x = 484, y = 150, z = 331},
+    ["⚓ Boat Expert"] = {x = 23.39, y = 4.70, z = 2804.16},
+    ["🔬 Scientist"] = {x = -8.64, y = 4.5, z = 2849.57},
+    ["🐟 Billy Bob"] = {x = 72.05, y = 30.50, z = 2950.63},
+    ["🎣 Silly Fisherman"] = {x = 93.53, y = 27.24, z = 3009.08},
+    ["🐧 Scott"] = {x = -81.94, y = 4.80, z = 2866.59},
     
-    -- Fishing Spots
-    ["🌊 Ocean (Starter)"] = {x = 0, y = 20, z = 200},
-    ["🏔️ Mountain Lake"] = {x = -1800, y = 150, z = 900},
-    ["🏝️ Coral Reef"] = {x = 500, y = 130, z = -200},
-    ["🌅 Deep Ocean"] = {x = 1000, y = 130, z = 1000},
-    ["❄️ Ice Lake"] = {x = -1200, y = 140, z = -800},
-    ["� Lava Pool"] = {x = 800, y = 160, z = 800},
+    -- === ISLANDS (LATEST DETECTED COORDINATES) ===
+    ["� Kohana Volcano"] = {x = -594.97, y = 396.65, z = 149.11},
+    ["🌋 Crater Island"] = {x = 1010.01, y = 252, z = 5078.45},
+    ["�️ Kohana"] = {x = -650.97, y = 208.69, z = 711.11},
+    ["🏴‍☠️ Lost Isle"] = {x = -3618.16, y = 240.84, z = -1317.46},
+    ["🦈 Stingray Shores"] = {x = 45.28, y = 252.56, z = 2987.11},
+    ["🌌 Esoteric Depths"] = {x = 1944.78, y = 393.56, z = 1371.36},
+    ["⛈️ Weather Machine"] = {x = -1488.51, y = 83.17, z = 1876.30},
+    ["🌴 Tropical Grove"] = {x = -2095.34, y = 197.20, z = 3718.08},
+    ["🐠 Coral Reefs"] = {x = -3023.97, y = 337.81, z = 2195.61},
     
-    -- Events & Special
+    -- === CLASSIC ISLANDS ===
+    ["� Moosewood"] = {x = 389, y = 137, z = 264},
+    ["🌊 Ocean"] = {x = 1082, y = 124, z = -924},
+    ["❄️ Snowcap Island"] = {x = 2648, y = 140, z = 2522},
+    ["🍄 Mushgrove Swamp"] = {x = -1817, y = 138, z = 1808},
+    ["🌅 Roslit Bay"] = {x = -1442, y = 135, z = 1006},
+    ["☀️ Sunstone Island"] = {x = -934, y = 135, z = -1122},
+    ["🗽 Statue Of Sovereignty"] = {x = 1, y = 140, z = -918},
+    ["🌙 Moonstone Island"] = {x = -3004, y = 135, z = -1157},
+    ["☠️ Forsaken Shores"] = {x = -2853, y = 135, z = 1627},
+    ["🏛️ Ancient Isle"] = {x = 5896, y = 137, z = 4516},
+    ["⛪ Keepers Altar"] = {x = 1296, y = 135, z = -808},
+    ["🧂 Brine Pool"] = {x = -1804, y = 135, z = 3265},
+    ["🕳️ The Depths"] = {x = 994, y = -715, z = 1226},
+    ["🌪️ Vertigo"] = {x = -111, y = -515, z = 1049},
+    ["🔥 Volcano"] = {x = -1888, y = 164, z = 330},
+    
+    -- === SPECIAL EVENTS ===
     ["🌟 Isonade Event"] = {x = -1442, y = 135, z = 1006},
-    ["🦈 Great White Event"] = {x = 1082, y = 124, z = -924}
+    ["🦈 Great White Event"] = {x = 1082, y = 124, z = -924},
+    ["🐋 Whale Event"] = {x = 2648, y = 140, z = 2522},
+    ["🌋 Volcano Event"] = {x = -1888, y = 164, z = 330}
 }
 
 local function teleportTo(position)
@@ -573,25 +600,129 @@ local function teleportTo(position)
     teleportCooldown = true
     
     pcall(function()
-        if character and character:FindFirstChild("HumanoidRootPart") then
-            character.HumanoidRootPart.CFrame = CFrame.new(position.x, position.y, position.z)
+        local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local humanoidRootPart = character:WaitForChild("HumanoidRootPart", 5)
+        
+        if humanoidRootPart then
+            -- Use more reliable teleportation method
+            local targetCFrame = CFrame.new(position.x, position.y, position.z)
+            humanoidRootPart.CFrame = targetCFrame
+            
+            -- Small delay to ensure teleportation
+            task.wait(0.1)
+            humanoidRootPart.CFrame = targetCFrame
+            
             Notify("✅ Teleported", "Arrived at destination!")
+        else
+            warn("XSAN: HumanoidRootPart not found for teleportation")
+            Notify("❌ Error", "Failed to teleport - Character not ready")
         end
     end)
     
-    task.wait(2)
-    teleportCooldown = false
+    -- Reset cooldown after 2 seconds
+    task.spawn(function()
+        task.wait(2)
+        teleportCooldown = false
+    end)
 end
 
--- Create teleport buttons
-for locationName, position in pairs(teleportLocations) do
-    TeleportTab:CreateButton({
-        Name = locationName,
-        Callback = CreateSafeCallback(function()
-            teleportTo(position)
-        end, "teleport_" .. locationName)
-    })
+-- Create teleport buttons organized by categories
+TeleportTab:CreateParagraph({
+    Title = "🛒 Shops & NPCs",
+    Content = "Essential NPCs and shops for buying items, storing fish, and upgrading equipment."
+})
+
+-- Shops & NPCs buttons
+local shopLocations = {
+    "🏠 Spawn", "🛒 Shop (Alex)", "🛒 Shop (Joe)", "🛒 Shop (Seth)",
+    "🎣 Rod Shop (Marc)", "📦 Storage (Henry)", "🏆 Angler",
+    "⚓ Boat Expert", "🔬 Scientist", "🐟 Billy Bob", 
+    "🎣 Silly Fisherman", "🐧 Scott"
+}
+
+for _, locationName in ipairs(shopLocations) do
+    if teleportLocations[locationName] then
+        TeleportTab:CreateButton({
+            Name = locationName,
+            Callback = CreateSafeCallback(function()
+                teleportTo(teleportLocations[locationName])
+            end, "teleport_" .. locationName)
+        })
+    end
 end
+
+TeleportTab:CreateParagraph({
+    Title = "🏝️ Latest Discovered Islands",
+    Content = "New islands with the most accurate coordinates detected in 2025."
+})
+
+-- New Islands buttons
+local newIslands = {
+    "🌋 Kohana Volcano", "🌋 Crater Island", "🏝️ Kohana", "🏴‍☠️ Lost Isle",
+    "🦈 Stingray Shores", "🌌 Esoteric Depths", "⛈️ Weather Machine",
+    "🌴 Tropical Grove", "🐠 Coral Reefs"
+}
+
+for _, locationName in ipairs(newIslands) do
+    if teleportLocations[locationName] then
+        TeleportTab:CreateButton({
+            Name = locationName,
+            Callback = CreateSafeCallback(function()
+                teleportTo(teleportLocations[locationName])
+            end, "teleport_" .. locationName)
+        })
+    end
+end
+
+TeleportTab:CreateParagraph({
+    Title = "🌊 Classic Islands",
+    Content = "Well-known fishing locations with proven coordinates."
+})
+
+-- Classic Islands buttons
+local classicIslands = {
+    "🌲 Moosewood", "🌊 Ocean", "❄️ Snowcap Island", "🍄 Mushgrove Swamp",
+    "🌅 Roslit Bay", "☀️ Sunstone Island", "🗽 Statue Of Sovereignty", 
+    "🌙 Moonstone Island", "☠️ Forsaken Shores", "🏛️ Ancient Isle",
+    "⛪ Keepers Altar", "🧂 Brine Pool", "🕳️ The Depths", "🌪️ Vertigo", "🔥 Volcano"
+}
+
+for _, locationName in ipairs(classicIslands) do
+    if teleportLocations[locationName] then
+        TeleportTab:CreateButton({
+            Name = locationName,
+            Callback = CreateSafeCallback(function()
+                teleportTo(teleportLocations[locationName])
+            end, "teleport_" .. locationName)
+        })
+    end
+end
+
+TeleportTab:CreateParagraph({
+    Title = "🌟 Special Events",
+    Content = "Event locations for rare fish and special encounters."
+})
+
+-- Special Events buttons
+local eventLocations = {
+    "🌟 Isonade Event", "🦈 Great White Event", "🐋 Whale Event", "🌋 Volcano Event"
+}
+
+for _, locationName in ipairs(eventLocations) do
+    if teleportLocations[locationName] then
+        TeleportTab:CreateButton({
+            Name = locationName,
+            Callback = CreateSafeCallback(function()
+                teleportTo(teleportLocations[locationName])
+            end, "teleport_" .. locationName)
+        })
+    end
+end
+
+TeleportTab:CreateParagraph({
+    Title = "📍 Custom Teleportation",
+    Content = "Enter your own coordinates for manual teleportation."
+})
 
 -- Custom teleport
 TeleportTab:CreateInput({
