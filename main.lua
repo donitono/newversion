@@ -1168,17 +1168,17 @@ for locationName, cframe in pairs(TeleportLocations.Islands) do
         if string.find(locationName:lower(), "volcano") or string.find(locationName:lower(), "crater") then
             displayName = "� " .. locationName
         elseif string.find(locationName:lower(), "snow") or string.find(locationName:lower(), "ice") then
-            displayName = "❄️ " .. locationName
+            displayName = locationName
         elseif string.find(locationName:lower(), "depth") or string.find(locationName:lower(), "ocean") then
-            displayName = "🌊 " .. locationName
+            displayName = locationName
         elseif string.find(locationName:lower(), "ancient") or string.find(locationName:lower(), "statue") or string.find(locationName:lower(), "altar") then
-            displayName = "🏛️ " .. locationName
+            displayName = locationName
         elseif string.find(locationName:lower(), "mountain") or string.find(locationName:lower(), "peak") then
-            displayName = "🏔️ " .. locationName
+            displayName = locationName
         elseif string.find(locationName:lower(), "swamp") or string.find(locationName:lower(), "grove") then
-            displayName = "🌿 " .. locationName
+            displayName = locationName
         elseif string.find(locationName:lower(), "reef") or string.find(locationName:lower(), "coral") then
-            displayName = "🐠 " .. locationName
+            displayName = locationName
         else
             displayName = "�🏝️ " .. locationName
         end
