@@ -147,54 +147,395 @@ local function CreateSafeCallback(originalCallback, buttonId)
     end
 end
 
--- Load Modern UI Library with better error handling
+-- Load Modern UI Library (Embedded)
 print("XSAN: Loading Modern UI Library...")
 
-local Rayfield
-local success, error = pcall(function()
-    print("XSAN: Attempting to load Modern UI...")
-    
-    -- Try multiple UI sources with proper fallback
-    local uiLibraries = {
-        "https://raw.githubusercontent.com/donitono/newversion/master/ui_fixed.lua",
-        "https://raw.githubusercontent.com/donitono/part2/main/ui_modern.lua", 
-        "https://raw.githubusercontent.com/donitono/part2/main/ui_fixed.lua",
-        "https://sirius.menu/rayfield" -- Official Rayfield
-    }
-    
-    for i, url in ipairs(uiLibraries) do
-        local success2, result = pcall(function()
-            print("XSAN: Trying UI source", i, ":", url)
-            local uiContent = game:HttpGet(url)
-            if uiContent and #uiContent > 100 then -- Make sure we got actual content
-                print("XSAN: Loading UI library from source", i)
-                Rayfield = loadstring(uiContent)()
-                if Rayfield then
-                    print("XSAN: UI library loaded successfully from source", i)
-                    return true
-                end
-            end
-        end)
-        
-        if success2 and Rayfield then
-            break
-        end
-    end
-    
-    print("XSAN: UI library loadstring executed")
-end)
+-- Embedded UI library (fixed version)
+local Rayfield = loadstring([[
+-- Rayfield UI Library (Fixed Version for Tab Distribution)
+local cloneref = cloneref or function(obj) return obj end
 
-if not success then
-    warn("XSAN Error: Failed to load UI Library - " .. tostring(error))
-    return
+local function getService(name)
+	local service = game:GetService(name)
+	return cloneref and cloneref(service) or service
 end
+
+-- Services
+local TweenService = getService("TweenService")
+local UserInputService = getService("UserInputService")
+local GuiService = getService("GuiService")
+local RunService = getService("RunService")
+local Players = getService("Players")
+local CoreGui = getService("CoreGui")
+
+-- Variables
+local Player = Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
+
+-- Create main ScreenGui with proper Z-Index
+local RayfieldLibrary = Instance.new("ScreenGui")
+RayfieldLibrary.Name = "RayfieldLibrary"
+RayfieldLibrary.ResetOnSpawn = false
+RayfieldLibrary.IgnoreGuiInset = true
+RayfieldLibrary.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+RayfieldLibrary.DisplayOrder = 10
+RayfieldLibrary.Parent = PlayerGui
+
+-- Variables for scaling and themes
+local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+local screenSize = workspace.CurrentCamera.ViewportSize
+
+-- Global tracking
+local CurrentTabs = {}
+local CurrentTab = nil
+
+-- Main Rayfield object
+local Rayfield = {}
+
+function Rayfield:CreateWindow(Settings)
+	local Window = {}
+	
+	-- Clear any existing tabs
+	CurrentTabs = {}
+	
+	-- Create main container with proper sizing
+	local Main = Instance.new("Frame")
+	Main.Name = "Main"
+	Main.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+	Main.BorderSizePixel = 0
+	Main.Position = UDim2.new(0.5, 0, 0.5, 0)
+	Main.AnchorPoint = Vector2.new(0.5, 0.5)
+	
+	-- Use compact 600x320 size (landscape friendly)
+	if isMobile then
+		Main.Size = UDim2.new(0, 600, 0, 320) -- Fixed compact size
+	else
+		Main.Size = UDim2.new(0, 600, 0, 380) -- Desktop still compact
+	end
+	
+	Main.Parent = RayfieldLibrary
+
+	local MainCorner = Instance.new("UICorner")
+	MainCorner.CornerRadius = UDim.new(0, 10)
+	MainCorner.Parent = Main
+
+	-- Create title bar
+	local TitleBar = Instance.new("Frame")
+	TitleBar.Name = "TitleBar"
+	TitleBar.Size = UDim2.new(1, 0, 0, 40)
+	TitleBar.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+	TitleBar.BorderSizePixel = 0
+	TitleBar.Parent = Main
+
+	local TitleCorner = Instance.new("UICorner")
+	TitleCorner.CornerRadius = UDim.new(0, 10)
+	TitleCorner.Parent = TitleBar
+
+	-- Fix corner for bottom
+	local TitleFix = Instance.new("Frame")
+	TitleFix.Size = UDim2.new(1, 0, 0, 10)
+	TitleFix.Position = UDim2.new(0, 0, 1, -10)
+	TitleFix.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+	TitleFix.BorderSizePixel = 0
+	TitleFix.Parent = TitleBar
+
+	-- Title text
+	local Title = Instance.new("TextLabel")
+	Title.Size = UDim2.new(1, -20, 1, 0)
+	Title.Position = UDim2.new(0, 10, 0, 0)
+	Title.BackgroundTransparency = 1
+	Title.Text = Settings.Name or "Rayfield"
+	Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+	Title.TextScaled = true
+	Title.Font = Enum.Font.SourceSansBold
+	Title.Parent = TitleBar
+
+	-- Create tab container
+	local TabContainer = Instance.new("Frame")
+	TabContainer.Name = "TabContainer"
+	TabContainer.Size = UDim2.new(1, 0, 0, 35)
+	TabContainer.Position = UDim2.new(0, 0, 0, 45)
+	TabContainer.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+	TabContainer.BorderSizePixel = 0
+	TabContainer.Parent = Main
+
+	local TabLayout = Instance.new("UIListLayout")
+	TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	TabLayout.FillDirection = Enum.FillDirection.Horizontal
+	TabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	TabLayout.Padding = UDim.new(0, 2)
+	TabLayout.Parent = TabContainer
+
+	-- Create content area
+	local ContentFrame = Instance.new("Frame")
+	ContentFrame.Name = "ContentFrame"
+	ContentFrame.Size = UDim2.new(1, 0, 1, -85)
+	ContentFrame.Position = UDim2.new(0, 0, 0, 85)
+	ContentFrame.BackgroundTransparency = 1
+	ContentFrame.Parent = Main
+
+	function Window:CreateTab(Name, Icon)
+		local Tab = {}
+		
+		-- Create tab button
+		local TabButton = Instance.new("TextButton")
+		TabButton.Name = Name
+		TabButton.Size = UDim2.new(0, 120, 1, 0)
+		TabButton.BackgroundColor3 = #CurrentTabs == 0 and Color3.fromRGB(60, 120, 180) or Color3.fromRGB(50, 50, 60)
+		TabButton.BorderSizePixel = 0
+		TabButton.Text = Name
+		TabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+		TabButton.TextScaled = true
+		TabButton.Font = Enum.Font.SourceSans
+		TabButton.Parent = TabContainer
+
+		local TabCorner = Instance.new("UICorner")
+		TabCorner.CornerRadius = UDim.new(0, 6)
+		TabCorner.Parent = TabButton
+
+		-- Create tab content
+		local TabContent = Instance.new("ScrollingFrame")
+		TabContent.Name = Name .. "Content"
+		TabContent.Size = UDim2.new(1, 0, 1, 0)
+		TabContent.Position = UDim2.new(0, 0, 0, 0)
+		TabContent.BackgroundTransparency = 1
+		TabContent.ScrollBarThickness = 8
+		TabContent.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 80)
+		TabContent.CanvasSize = UDim2.new(0, 0, 0, 0)
+		TabContent.AutomaticCanvasSize = Enum.AutomaticSize.Y
+		TabContent.Visible = #CurrentTabs == 0 -- First tab visible
+		TabContent.Parent = ContentFrame
+
+		local ContentLayout = Instance.new("UIListLayout")
+		ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		ContentLayout.Padding = UDim.new(0, 5)
+		ContentLayout.Parent = TabContent
+
+		local ContentPadding = Instance.new("UIPadding")
+		ContentPadding.PaddingTop = UDim.new(0, 10)
+		ContentPadding.PaddingBottom = UDim.new(0, 10)
+		ContentPadding.PaddingLeft = UDim.new(0, 10)
+		ContentPadding.PaddingRight = UDim.new(0, 10)
+		ContentPadding.Parent = TabContent
+
+		-- Tab click event
+		TabButton.MouseButton1Click:Connect(function()
+			-- Hide all tabs
+			for _, tabData in pairs(CurrentTabs) do
+				tabData.Content.Visible = false
+				tabData.Button.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+			end
+			
+			-- Show this tab
+			TabContent.Visible = true
+			TabButton.BackgroundColor3 = Color3.fromRGB(60, 120, 180)
+			CurrentTab = Tab
+		end)
+
+		-- Store tab data
+		table.insert(CurrentTabs, Tab)
+		if #CurrentTabs == 1 then
+			CurrentTab = Tab
+		end
+
+		Tab.Content = TabContent
+		Tab.Button = TabButton
+
+		-- Tab-specific Create methods (FIXED VERSION)
+		function Tab:CreateParagraph(Settings)
+			local Container = Instance.new("Frame")
+			Container.Size = UDim2.new(1, 0, 0, 0)
+			Container.BackgroundTransparency = 1
+			Container.AutomaticSize = Enum.AutomaticSize.Y
+			Container.Parent = Tab.Content -- Use Tab.Content directly
+
+			if Settings.Title then
+				local Title = Instance.new("TextLabel")
+				Title.Size = UDim2.new(1, 0, 0, 20)
+				Title.BackgroundTransparency = 1
+				Title.Text = Settings.Title
+				Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+				Title.Font = Enum.Font.SourceSansBold
+				Title.TextSize = 12
+				Title.TextXAlignment = Enum.TextXAlignment.Left
+				Title.Parent = Container
+			end
+
+			local Content = Instance.new("TextLabel")
+			Content.Size = UDim2.new(1, 0, 0, 0)
+			Content.Position = Settings.Title and UDim2.new(0, 0, 0, 25) or UDim2.new(0, 0, 0, 0)
+			Content.BackgroundTransparency = 1
+			Content.Text = Settings.Content or ""
+			Content.TextColor3 = Color3.fromRGB(200, 200, 200)
+			Content.Font = Enum.Font.SourceSans
+			Content.TextSize = 10
+			Content.TextWrapped = true
+			Content.TextXAlignment = Enum.TextXAlignment.Left
+			Content.TextYAlignment = Enum.TextYAlignment.Top
+			Content.AutomaticSize = Enum.AutomaticSize.Y
+			Content.Parent = Container
+
+			local Layout = Instance.new("UIListLayout")
+			Layout.SortOrder = Enum.SortOrder.LayoutOrder
+			Layout.Padding = UDim.new(0, 2)
+			Layout.Parent = Container
+
+			return Container
+		end
+
+		function Tab:CreateButton(Settings)
+			local Button = Instance.new("TextButton")
+			Button.Size = UDim2.new(1, 0, 0, 30)
+			Button.BackgroundColor3 = Color3.fromRGB(60, 120, 180)
+			Button.BorderSizePixel = 0
+			Button.Text = Settings.Name or "Button"
+			Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+			Button.Font = Enum.Font.SourceSansBold
+			Button.TextSize = 11
+			Button.Parent = Tab.Content -- Use Tab.Content directly
+
+			local Corner = Instance.new("UICorner")
+			Corner.CornerRadius = UDim.new(0, 6)
+			Corner.Parent = Button
+
+			Button.MouseButton1Click:Connect(function()
+				if Settings.Callback then
+					Settings.Callback()
+				end
+			end)
+
+			return Button
+		end
+
+		function Tab:CreateToggle(Settings)
+			local Container = Instance.new("Frame")
+			Container.Size = UDim2.new(1, 0, 0, 35)
+			Container.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+			Container.BorderSizePixel = 0
+			Container.Parent = Tab.Content -- Use Tab.Content directly
+
+			local ContainerCorner = Instance.new("UICorner")
+			ContainerCorner.CornerRadius = UDim.new(0, 6)
+			ContainerCorner.Parent = Container
+
+			local Label = Instance.new("TextLabel")
+			Label.Size = UDim2.new(1, -60, 1, 0)
+			Label.Position = UDim2.new(0, 10, 0, 0)
+			Label.BackgroundTransparency = 1
+			Label.Text = Settings.Name or "Toggle"
+			Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+			Label.Font = Enum.Font.SourceSans
+			Label.TextSize = 11
+			Label.TextXAlignment = Enum.TextXAlignment.Left
+			Label.Parent = Container
+
+			local ToggleButton = Instance.new("TextButton")
+			ToggleButton.Size = UDim2.new(0, 40, 0, 20)
+			ToggleButton.Position = UDim2.new(1, -50, 0.5, -10)
+			ToggleButton.BackgroundColor3 = Settings.CurrentValue and Color3.fromRGB(60, 120, 180) or Color3.fromRGB(80, 80, 80)
+			ToggleButton.BorderSizePixel = 0
+			ToggleButton.Text = ""
+			ToggleButton.Parent = Container
+
+			local ToggleCorner = Instance.new("UICorner")
+			ToggleCorner.CornerRadius = UDim.new(0.5, 0)
+			ToggleCorner.Parent = ToggleButton
+
+			local isToggled = Settings.CurrentValue or false
+
+			ToggleButton.MouseButton1Click:Connect(function()
+				isToggled = not isToggled
+				ToggleButton.BackgroundColor3 = isToggled and Color3.fromRGB(60, 120, 180) or Color3.fromRGB(80, 80, 80)
+				if Settings.Callback then
+					Settings.Callback(isToggled)
+				end
+			end)
+
+			return Container
+		end
+
+		function Tab:CreateDropdown(Settings)
+			local Container = Instance.new("Frame")
+			Container.Size = UDim2.new(1, 0, 0, 35)
+			Container.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+			Container.BorderSizePixel = 0
+			Container.Parent = Tab.Content -- Use Tab.Content directly
+
+			local ContainerCorner = Instance.new("UICorner")
+			ContainerCorner.CornerRadius = UDim.new(0, 6)
+			ContainerCorner.Parent = Container
+
+			local Label = Instance.new("TextLabel")
+			Label.Size = UDim2.new(0.5, 0, 1, 0)
+			Label.Position = UDim2.new(0, 10, 0, 0)
+			Label.BackgroundTransparency = 1
+			Label.Text = Settings.Name or "Dropdown"
+			Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+			Label.Font = Enum.Font.SourceSans
+			Label.TextSize = 11
+			Label.TextXAlignment = Enum.TextXAlignment.Left
+			Label.Parent = Container
+
+			local DropdownButton = Instance.new("TextButton")
+			DropdownButton.Size = UDim2.new(0.5, -20, 0, 25)
+			DropdownButton.Position = UDim2.new(0.5, 10, 0, 5)
+			DropdownButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+			DropdownButton.BorderSizePixel = 0
+			DropdownButton.Text = Settings.CurrentOption or "Select..."
+			DropdownButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+			DropdownButton.Font = Enum.Font.SourceSans
+			DropdownButton.TextSize = 10
+			DropdownButton.Parent = Container
+
+			-- Simple dropdown - cycle through options
+			local Options = Settings.Options or {}
+			local CurrentIndex = 1
+			
+			for i, option in ipairs(Options) do
+				if option == Settings.CurrentOption then
+					CurrentIndex = i
+					break
+				end
+			end
+
+			DropdownButton.MouseButton1Click:Connect(function()
+				CurrentIndex = CurrentIndex + 1
+				if CurrentIndex > #Options then
+					CurrentIndex = 1
+				end
+				
+				DropdownButton.Text = Options[CurrentIndex]
+				
+				if Settings.Callback then
+					Settings.Callback(Options[CurrentIndex])
+				end
+			end)
+
+			return Container
+		end
+
+		return Tab
+	end
+
+	-- Window utility functions
+	function Window:Refresh()
+		if Main and Main.Parent then
+			Main.Parent = Main.Parent
+		end
+	end
+
+	return Window
+end
+
+return Rayfield
+]])()
 
 if not Rayfield then
-    warn("XSAN Error: UI Library is nil after loading")
+    warn("XSAN ERROR: Failed to load embedded UI library")
     return
 end
 
-print("XSAN: Modern UI Library loaded successfully!")
+print("XSAN: Modern UI library loaded successfully!")
 
 -- Mobile/Android detection
 local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
@@ -202,42 +543,19 @@ local screenSize = workspace.CurrentCamera.ViewportSize
 
 print("XSAN: Platform Detection - Mobile:", isMobile, "Screen Size:", screenSize.X .. "x" .. screenSize.Y)
 
--- Create Modern Window with better error handling
+-- Create Modern Window
 print("XSAN: Creating modern window...")
-
-local Window
-local windowSuccess, windowError = pcall(function()
-    Window = Rayfield:CreateWindow({
-        Name = "🐟 XSAN Fish It Pro Ultimate v2.0",
-        LoadingTitle = "XSAN Fish It Pro Ultimate",
-        LoadingSubtitle = "Modern Tab Interface - by XSAN",
-        Theme = "Default", -- Use default theme for better compatibility
-        ConfigurationSaving = {
-            Enabled = false, -- Disable config saving to avoid issues
-            FolderName = nil,
-            FileName = nil
-        },
-        Discord = {
-            Enabled = false
-        },
-        KeySystem = false
-    })
-end)
-
-if not windowSuccess then
-    warn("XSAN Error: Failed to create window - " .. tostring(windowError))
-    -- Try with minimal configuration
-    Window = Rayfield:CreateWindow({
-        Name = "XSAN Fish It Pro Ultimate v2.0",
-        LoadingTitle = "XSAN Fish It Pro Ultimate",
-        LoadingSubtitle = "by XSAN"
-    })
-end
-
-if not Window then
-    warn("XSAN Error: Window is nil after creation")
-    return
-end
+local Window = Rayfield:CreateWindow({
+    Name = "🐟 XSAN Fish It Pro Ultimate v2.0",
+    LoadingTitle = "XSAN Fish It Pro Ultimate",
+    LoadingSubtitle = "Modern Tab Interface - by XSAN",
+    Theme = "DarkBlue",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "XSAN",
+        FileName = "FishItProModern"
+    }
+})
 
 print("XSAN: Window created successfully!")
 
@@ -319,9 +637,7 @@ task.spawn(function()
 end)
 
 -- === TAB 1: INFO (HANYA INFO, TIDAK ADA FITUR) ===
-print("XSAN: Creating INFO tab...")
 local InfoTab = Window:CreateTab("📋 INFO", "🏠")
-print("XSAN: INFO tab created successfully!")
 
 InfoTab:CreateParagraph({
     Title = "🌟 XSAN Fish It Pro Ultimate v2.0",
@@ -344,9 +660,7 @@ InfoTab:CreateParagraph({
 })
 
 -- === TAB 2: AUTO FISH (SEMUA FITUR FISHING DI SINI) ===
-print("XSAN: Creating AUTO FISH tab...")
 local AutoFishTab = Window:CreateTab("🎣 AUTO FISH", "🎣")
-print("XSAN: AUTO FISH tab created successfully!")
 
 AutoFishTab:CreateParagraph({
     Title = "🎣 Automated Fishing System",
@@ -531,64 +845,35 @@ AutoFishTab:CreateSlider({
 })
 
 -- === TAB 3: TELEPORT ===
-print("XSAN: Creating TELEPORT tab...")
 local TeleportTab = Window:CreateTab("🌍 TELEPORT", "🌍")
-print("XSAN: TELEPORT tab created successfully!")
 
 TeleportTab:CreateParagraph({
     Title = "🌍 Ultimate Teleportation System",
     Content = "Teleport instantly to any fishing location or shop. Updated coordinates for all areas!"
 })
 
--- Fish It accurate teleport locations (Updated 2025)
+-- Fish It accurate teleport locations
 local teleportLocations = {
-    -- === MAIN SHOPS & NPCs ===
+    -- Main Areas
     ["🏠 Spawn"] = {x = 1, y = 18, z = 134},
-    ["🛒 Shop (Alex)"] = {x = -31.10, y = 4.84, z = 2899.03},
-    ["🛒 Shop (Joe)"] = {x = 114.39, y = 4.75, z = 2882.38},
-    ["🛒 Shop (Seth)"] = {x = 70.96, y = 4.84, z = 2895.36},
+    ["🏪 Shop (Alex)"] = {x = -28.43, y = 4.50, z = 2891.28},
+    ["🏪 Shop (Joe)"] = {x = 112.01, y = 4.75, z = 2877.32},
+    ["🏪 Shop (Seth)"] = {x = 72.02, y = 4.58, z = 2885.28},
     ["🎣 Rod Shop (Marc)"] = {x = 454, y = 150, z = 229},
+    ["⚓ Shipwright"] = {x = 343, y = 135, z = 271},
     ["📦 Storage (Henry)"] = {x = 491, y = 150, z = 272},
-    ["🏆 Angler"] = {x = 484, y = 150, z = 331},
-    ["⚓ Boat Expert"] = {x = 23.39, y = 4.70, z = 2804.16},
-    ["🔬 Scientist"] = {x = -8.64, y = 4.5, z = 2849.57},
-    ["🐟 Billy Bob"] = {x = 72.05, y = 30.50, z = 2950.63},
-    ["🎣 Silly Fisherman"] = {x = 93.53, y = 27.24, z = 3009.08},
-    ["🐧 Scott"] = {x = -81.94, y = 4.80, z = 2866.59},
     
-    -- === ISLANDS (LATEST DETECTED COORDINATES) ===
-    ["� Kohana Volcano"] = {x = -594.97, y = 396.65, z = 149.11},
-    ["🌋 Crater Island"] = {x = 1010.01, y = 252, z = 5078.45},
-    ["�️ Kohana"] = {x = -650.97, y = 208.69, z = 711.11},
-    ["🏴‍☠️ Lost Isle"] = {x = -3618.16, y = 240.84, z = -1317.46},
-    ["🦈 Stingray Shores"] = {x = 45.28, y = 252.56, z = 2987.11},
-    ["🌌 Esoteric Depths"] = {x = 1944.78, y = 393.56, z = 1371.36},
-    ["⛈️ Weather Machine"] = {x = -1488.51, y = 83.17, z = 1876.30},
-    ["🌴 Tropical Grove"] = {x = -2095.34, y = 197.20, z = 3718.08},
-    ["🐠 Coral Reefs"] = {x = -3023.97, y = 337.81, z = 2195.61},
+    -- Fishing Spots
+    ["🌊 Ocean (Starter)"] = {x = 0, y = 20, z = 200},
+    ["🏔️ Mountain Lake"] = {x = -1800, y = 150, z = 900},
+    ["🏝️ Coral Reef"] = {x = 500, y = 130, z = -200},
+    ["🌅 Deep Ocean"] = {x = 1000, y = 130, z = 1000},
+    ["❄️ Ice Lake"] = {x = -1200, y = 140, z = -800},
+    ["� Lava Pool"] = {x = 800, y = 160, z = 800},
     
-    -- === CLASSIC ISLANDS ===
-    ["� Moosewood"] = {x = 389, y = 137, z = 264},
-    ["🌊 Ocean"] = {x = 1082, y = 124, z = -924},
-    ["❄️ Snowcap Island"] = {x = 2648, y = 140, z = 2522},
-    ["🍄 Mushgrove Swamp"] = {x = -1817, y = 138, z = 1808},
-    ["🌅 Roslit Bay"] = {x = -1442, y = 135, z = 1006},
-    ["☀️ Sunstone Island"] = {x = -934, y = 135, z = -1122},
-    ["🗽 Statue Of Sovereignty"] = {x = 1, y = 140, z = -918},
-    ["🌙 Moonstone Island"] = {x = -3004, y = 135, z = -1157},
-    ["☠️ Forsaken Shores"] = {x = -2853, y = 135, z = 1627},
-    ["🏛️ Ancient Isle"] = {x = 5896, y = 137, z = 4516},
-    ["⛪ Keepers Altar"] = {x = 1296, y = 135, z = -808},
-    ["🧂 Brine Pool"] = {x = -1804, y = 135, z = 3265},
-    ["🕳️ The Depths"] = {x = 994, y = -715, z = 1226},
-    ["🌪️ Vertigo"] = {x = -111, y = -515, z = 1049},
-    ["🔥 Volcano"] = {x = -1888, y = 164, z = 330},
-    
-    -- === SPECIAL EVENTS ===
+    -- Events & Special
     ["🌟 Isonade Event"] = {x = -1442, y = 135, z = 1006},
-    ["🦈 Great White Event"] = {x = 1082, y = 124, z = -924},
-    ["🐋 Whale Event"] = {x = 2648, y = 140, z = 2522},
-    ["🌋 Volcano Event"] = {x = -1888, y = 164, z = 330}
+    ["🦈 Great White Event"] = {x = 1082, y = 124, z = -924}
 }
 
 local function teleportTo(position)
@@ -600,129 +885,25 @@ local function teleportTo(position)
     teleportCooldown = true
     
     pcall(function()
-        local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-        local humanoidRootPart = character:WaitForChild("HumanoidRootPart", 5)
-        
-        if humanoidRootPart then
-            -- Use more reliable teleportation method
-            local targetCFrame = CFrame.new(position.x, position.y, position.z)
-            humanoidRootPart.CFrame = targetCFrame
-            
-            -- Small delay to ensure teleportation
-            task.wait(0.1)
-            humanoidRootPart.CFrame = targetCFrame
-            
+        if character and character:FindFirstChild("HumanoidRootPart") then
+            character.HumanoidRootPart.CFrame = CFrame.new(position.x, position.y, position.z)
             Notify("✅ Teleported", "Arrived at destination!")
-        else
-            warn("XSAN: HumanoidRootPart not found for teleportation")
-            Notify("❌ Error", "Failed to teleport - Character not ready")
         end
     end)
     
-    -- Reset cooldown after 2 seconds
-    task.spawn(function()
-        task.wait(2)
-        teleportCooldown = false
-    end)
+    task.wait(2)
+    teleportCooldown = false
 end
 
--- Create teleport buttons organized by categories
-TeleportTab:CreateParagraph({
-    Title = "🛒 Shops & NPCs",
-    Content = "Essential NPCs and shops for buying items, storing fish, and upgrading equipment."
-})
-
--- Shops & NPCs buttons
-local shopLocations = {
-    "🏠 Spawn", "🛒 Shop (Alex)", "🛒 Shop (Joe)", "🛒 Shop (Seth)",
-    "🎣 Rod Shop (Marc)", "📦 Storage (Henry)", "🏆 Angler",
-    "⚓ Boat Expert", "🔬 Scientist", "🐟 Billy Bob", 
-    "🎣 Silly Fisherman", "🐧 Scott"
-}
-
-for _, locationName in ipairs(shopLocations) do
-    if teleportLocations[locationName] then
-        TeleportTab:CreateButton({
-            Name = locationName,
-            Callback = CreateSafeCallback(function()
-                teleportTo(teleportLocations[locationName])
-            end, "teleport_" .. locationName)
-        })
-    end
+-- Create teleport buttons
+for locationName, position in pairs(teleportLocations) do
+    TeleportTab:CreateButton({
+        Name = locationName,
+        Callback = CreateSafeCallback(function()
+            teleportTo(position)
+        end, "teleport_" .. locationName)
+    })
 end
-
-TeleportTab:CreateParagraph({
-    Title = "🏝️ Latest Discovered Islands",
-    Content = "New islands with the most accurate coordinates detected in 2025."
-})
-
--- New Islands buttons
-local newIslands = {
-    "🌋 Kohana Volcano", "🌋 Crater Island", "🏝️ Kohana", "🏴‍☠️ Lost Isle",
-    "🦈 Stingray Shores", "🌌 Esoteric Depths", "⛈️ Weather Machine",
-    "🌴 Tropical Grove", "🐠 Coral Reefs"
-}
-
-for _, locationName in ipairs(newIslands) do
-    if teleportLocations[locationName] then
-        TeleportTab:CreateButton({
-            Name = locationName,
-            Callback = CreateSafeCallback(function()
-                teleportTo(teleportLocations[locationName])
-            end, "teleport_" .. locationName)
-        })
-    end
-end
-
-TeleportTab:CreateParagraph({
-    Title = "🌊 Classic Islands",
-    Content = "Well-known fishing locations with proven coordinates."
-})
-
--- Classic Islands buttons
-local classicIslands = {
-    "🌲 Moosewood", "🌊 Ocean", "❄️ Snowcap Island", "🍄 Mushgrove Swamp",
-    "🌅 Roslit Bay", "☀️ Sunstone Island", "🗽 Statue Of Sovereignty", 
-    "🌙 Moonstone Island", "☠️ Forsaken Shores", "🏛️ Ancient Isle",
-    "⛪ Keepers Altar", "🧂 Brine Pool", "🕳️ The Depths", "🌪️ Vertigo", "🔥 Volcano"
-}
-
-for _, locationName in ipairs(classicIslands) do
-    if teleportLocations[locationName] then
-        TeleportTab:CreateButton({
-            Name = locationName,
-            Callback = CreateSafeCallback(function()
-                teleportTo(teleportLocations[locationName])
-            end, "teleport_" .. locationName)
-        })
-    end
-end
-
-TeleportTab:CreateParagraph({
-    Title = "🌟 Special Events",
-    Content = "Event locations for rare fish and special encounters."
-})
-
--- Special Events buttons
-local eventLocations = {
-    "🌟 Isonade Event", "🦈 Great White Event", "🐋 Whale Event", "🌋 Volcano Event"
-}
-
-for _, locationName in ipairs(eventLocations) do
-    if teleportLocations[locationName] then
-        TeleportTab:CreateButton({
-            Name = locationName,
-            Callback = CreateSafeCallback(function()
-                teleportTo(teleportLocations[locationName])
-            end, "teleport_" .. locationName)
-        })
-    end
-end
-
-TeleportTab:CreateParagraph({
-    Title = "📍 Custom Teleportation",
-    Content = "Enter your own coordinates for manual teleportation."
-})
 
 -- Custom teleport
 TeleportTab:CreateInput({
@@ -763,10 +944,409 @@ TeleportTab:CreateButton({
     end, "custom_teleport_btn")
 })
 
+-- ═══════════════════════════════════════════════════════════════
+-- NPC TELEPORTATION SYSTEM INTEGRATION
+-- ═══════════════════════════════════════════════════════════════
+
+print("XSAN: Loading NPC Teleportation System...")
+
+-- NPC System for detection and teleportation
+local NPCSystem = {
+    detectedNPCs = {},
+    customNPCs = {},
+    autoRefresh = false,
+    lastScan = 0,
+    scanCooldown = 5,
+    teleportCooldown = false
+}
+
+-- Pre-defined NPC locations based on detector results
+NPCSystem.customNPCs = {
+    -- Shop NPCs (Updated coordinates from NPC detector)
+    ["Alex (Main Shop)"] = {x = -28.43, y = 4.50, z = 2891.28},
+    ["Joe (Bait Shop)"] = {x = 112.01, y = 4.75, z = 2877.32},
+    ["Seth (Equipment)"] = {x = 72.02, y = 4.58, z = 2885.28},
+    ["Marc (Rod Shop)"] = {x = 454, y = 150, z = 229},
+    ["Henry (Storage)"] = {x = 491, y = 150, z = 272},
+    ["Shipwright"] = {x = 343, y = 135, z = 271},
+    
+    -- Quest NPCs (Update with actual coordinates from detector)
+    ["Quest Giver 1"] = {x = 100, y = 20, z = 200},
+    ["Quest Giver 2"] = {x = -100, y = 25, z = 300},
+    ["Tutorial Guide"] = {x = 50, y = 18, z = 150},
+    
+    -- Special NPCs
+    ["Event Manager"] = {x = 0, y = 25, z = 400},
+    ["Leaderboard NPC"] = {x = -50, y = 20, z = 100},
+    ["Daily Rewards"] = {x = 25, y = 22, z = 175}
+}
+
+-- Function to detect NPCs in the game
+function NPCSystem:DetectNPCs()
+    if tick() - self.lastScan < self.scanCooldown then
+        return self.detectedNPCs
+    end
+    
+    self.lastScan = tick()
+    self.detectedNPCs = {}
+    
+    pcall(function()
+        -- Check ReplicatedStorage for NPCs
+        local npcContainer = ReplicatedStorage:FindFirstChild("NPC")
+        if npcContainer then
+            for _, npc in pairs(npcContainer:GetChildren()) do
+                if npc:IsA("Model") or npc:IsA("Part") then
+                    local pos = npc:FindFirstChild("WorldPivot") and npc.WorldPivot.Position or 
+                               (npc:IsA("Part") and npc.Position or nil)
+                    if pos then
+                        self.detectedNPCs[npc.Name] = {
+                            x = pos.X,
+                            y = pos.Y,
+                            z = pos.Z,
+                            source = "ReplicatedStorage"
+                        }
+                    end
+                end
+            end
+        end
+        
+        -- Check Workspace for NPCs (humanoid characters)
+        for _, obj in pairs(Workspace:GetDescendants()) do
+            if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and 
+               obj.Name ~= LocalPlayer.Name and not Players:GetPlayerFromCharacter(obj) then
+                
+                local rootPart = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("Torso")
+                if rootPart then
+                    self.detectedNPCs[obj.Name] = {
+                        x = rootPart.Position.X,
+                        y = rootPart.Position.Y,
+                        z = rootPart.Position.Z,
+                        source = "Workspace"
+                    }
+                end
+            end
+        end
+        
+        -- Check for named parts that might be NPCs
+        for _, obj in pairs(Workspace:GetDescendants()) do
+            if obj:IsA("Part") and obj.Name and 
+               (string.find(string.lower(obj.Name), "npc") or 
+                string.find(string.lower(obj.Name), "vendor") or
+                string.find(string.lower(obj.Name), "shop") or
+                string.find(string.lower(obj.Name), "quest")) then
+                
+                self.detectedNPCs[obj.Name] = {
+                    x = obj.Position.X,
+                    y = obj.Position.Y,
+                    z = obj.Position.Z,
+                    source = "Named Part"
+                }
+            end
+        end
+    end)
+    
+    print("XSAN: Detected", self:GetNPCCount(), "NPCs")
+    return self.detectedNPCs
+end
+
+-- Get total NPC count
+function NPCSystem:GetNPCCount()
+    local count = 0
+    for _ in pairs(self.detectedNPCs) do count = count + 1 end
+    for _ in pairs(self.customNPCs) do count = count + 1 end
+    return count
+end
+
+-- Calculate distance to NPC
+function NPCSystem:GetDistanceToNPC(npcData)
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        return math.huge
+    end
+    
+    local playerPos = LocalPlayer.Character.HumanoidRootPart.Position
+    local npcPos = Vector3.new(npcData.x, npcData.y, npcData.z)
+    return (playerPos - npcPos).Magnitude
+end
+
+-- Enhanced teleport function for NPCs
+function NPCSystem:TeleportToNPC(npcData, npcName)
+    if teleportCooldown then
+        Notify("⏰ Cooldown", "Please wait before teleporting again")
+        return false
+    end
+    
+    if not character or not character:FindFirstChild("HumanoidRootPart") then
+        Notify("❌ Error", "Character not found")
+        return false
+    end
+    
+    teleportCooldown = true
+    
+    pcall(function()
+        local targetPos = CFrame.new(npcData.x, npcData.y + 2, npcData.z) -- +2 Y to avoid clipping
+        character.HumanoidRootPart.CFrame = targetPos
+        
+        -- Add a small bounce effect
+        task.spawn(function()
+            task.wait(0.1)
+            character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+        end)
+        
+        local distance = math.floor(self:GetDistanceToNPC(npcData))
+        Notify("✅ Teleported to " .. npcName, "Distance: " .. distance .. " studs")
+    end)
+    
+    task.spawn(function()
+        task.wait(2)
+        teleportCooldown = false
+    end)
+    
+    return true
+end
+
+-- Search NPCs by name
+function NPCSystem:SearchNPCs(searchTerm)
+    local results = {}
+    searchTerm = string.lower(searchTerm)
+    
+    -- Search detected NPCs
+    for name, data in pairs(self.detectedNPCs) do
+        if string.find(string.lower(name), searchTerm) then
+            results[name] = data
+        end
+    end
+    
+    -- Search custom NPCs
+    for name, data in pairs(self.customNPCs) do
+        if string.find(string.lower(name), searchTerm) then
+            results[name] = data
+        end
+    end
+    
+    return results
+end
+
+-- ═══════════════════════════════════════════════════════════════
+-- NPC TELEPORTATION UI INTEGRATION
+-- ═══════════════════════════════════════════════════════════════
+
+TeleportTab:CreateParagraph({
+    Title = "👥 NPC Teleportation System",
+    Content = "Advanced NPC detection and teleportation. Auto-detects all NPCs in the game!"
+})
+
+-- Auto Refresh NPCs Toggle
+TeleportTab:CreateToggle({
+    Name = "🔄 Auto Refresh NPCs",
+    CurrentValue = NPCSystem.autoRefresh,
+    Callback = CreateSafeCallback(function(value)
+        NPCSystem.autoRefresh = value
+        
+        if value then
+            Notify("🔄 Auto Refresh", "NPC detection enabled!")
+            task.spawn(function()
+                while NPCSystem.autoRefresh do
+                    NPCSystem:DetectNPCs()
+                    task.wait(NPCSystem.scanCooldown)
+                end
+            end)
+        else
+            Notify("🔄 Auto Refresh", "Disabled!")
+        end
+    end, "npc_auto_refresh")
+})
+
+-- Manual NPC Scan Button
+TeleportTab:CreateButton({
+    Name = "🔍 Scan for NPCs Now",
+    Callback = CreateSafeCallback(function()
+        NPCSystem:DetectNPCs()
+        local count = NPCSystem:GetNPCCount()
+        Notify("🔍 NPC Scan", "Found " .. count .. " NPCs total!")
+    end, "manual_npc_scan")
+})
+
+-- NPC Search Feature
+local searchResults = {}
+TeleportTab:CreateInput({
+    Name = "🔎 Search NPCs",
+    PlaceholderText = "Enter NPC name to search...",
+    RemoveTextAfterFocusLost = false,
+    Callback = CreateSafeCallback(function(text)
+        if text and text ~= "" then
+            searchResults = NPCSystem:SearchNPCs(text)
+            local count = 0
+            for _ in pairs(searchResults) do count = count + 1 end
+            Notify("🔎 Search Results", "Found " .. count .. " NPCs matching '" .. text .. "'")
+        end
+    end, "npc_search")
+})
+
+-- Teleport to Search Result
+TeleportTab:CreateButton({
+    Name = "🚀 Teleport to Search Result",
+    Callback = CreateSafeCallback(function()
+        for name, data in pairs(searchResults) do
+            NPCSystem:TeleportToNPC(data, name)
+            break -- Teleport to first result only
+        end
+    end, "teleport_search_result")
+})
+
+-- ═══════════════════════════════════════════════════════════════
+-- SHOP NPCs QUICK ACCESS
+-- ═══════════════════════════════════════════════════════════════
+
+TeleportTab:CreateParagraph({
+    Title = "🏪 Shop NPCs",
+    Content = "Quick access to all shop and vendor NPCs"
+})
+
+-- Shop NPCs Buttons
+TeleportTab:CreateButton({
+    Name = "🏪 Alex (Main Shop)",
+    Callback = CreateSafeCallback(function()
+        NPCSystem:TeleportToNPC(NPCSystem.customNPCs["Alex (Main Shop)"], "Alex (Main Shop)")
+    end, "teleport_alex")
+})
+
+TeleportTab:CreateButton({
+    Name = "🪱 Joe (Bait Shop)",
+    Callback = CreateSafeCallback(function()
+        NPCSystem:TeleportToNPC(NPCSystem.customNPCs["Joe (Bait Shop)"], "Joe (Bait Shop)")
+    end, "teleport_joe")
+})
+
+TeleportTab:CreateButton({
+    Name = "⚙️ Seth (Equipment)",
+    Callback = CreateSafeCallback(function()
+        NPCSystem:TeleportToNPC(NPCSystem.customNPCs["Seth (Equipment)"], "Seth (Equipment)")
+    end, "teleport_seth")
+})
+
+TeleportTab:CreateButton({
+    Name = "🎣 Marc (Rod Shop)",
+    Callback = CreateSafeCallback(function()
+        NPCSystem:TeleportToNPC(NPCSystem.customNPCs["Marc (Rod Shop)"], "Marc (Rod Shop)")
+    end, "teleport_marc")
+})
+
+TeleportTab:CreateButton({
+    Name = "📦 Henry (Storage)",
+    Callback = CreateSafeCallback(function()
+        NPCSystem:TeleportToNPC(NPCSystem.customNPCs["Henry (Storage)"], "Henry (Storage)")
+    end, "teleport_henry")
+})
+
+TeleportTab:CreateButton({
+    Name = "⚓ Shipwright",
+    Callback = CreateSafeCallback(function()
+        NPCSystem:TeleportToNPC(NPCSystem.customNPCs["Shipwright"], "Shipwright")
+    end, "teleport_shipwright")
+})
+
+-- ═══════════════════════════════════════════════════════════════
+-- QUEST & SPECIAL NPCs
+-- ═══════════════════════════════════════════════════════════════
+
+TeleportTab:CreateParagraph({
+    Title = "📋 Quest & Special NPCs",
+    Content = "Quest givers and special characters"
+})
+
+TeleportTab:CreateButton({
+    Name = "📋 Quest Giver 1",
+    Callback = CreateSafeCallback(function()
+        NPCSystem:TeleportToNPC(NPCSystem.customNPCs["Quest Giver 1"], "Quest Giver 1")
+    end, "teleport_quest1")
+})
+
+TeleportTab:CreateButton({
+    Name = "📋 Quest Giver 2",
+    Callback = CreateSafeCallback(function()
+        NPCSystem:TeleportToNPC(NPCSystem.customNPCs["Quest Giver 2"], "Quest Giver 2")
+    end, "teleport_quest2")
+})
+
+TeleportTab:CreateButton({
+    Name = "🎓 Tutorial Guide",
+    Callback = CreateSafeCallback(function()
+        NPCSystem:TeleportToNPC(NPCSystem.customNPCs["Tutorial Guide"], "Tutorial Guide")
+    end, "teleport_tutorial")
+})
+
+TeleportTab:CreateButton({
+    Name = "🎉 Event Manager",
+    Callback = CreateSafeCallback(function()
+        NPCSystem:TeleportToNPC(NPCSystem.customNPCs["Event Manager"], "Event Manager")
+    end, "teleport_event")
+})
+
+TeleportTab:CreateButton({
+    Name = "🏆 Leaderboard NPC",
+    Callback = CreateSafeCallback(function()
+        NPCSystem:TeleportToNPC(NPCSystem.customNPCs["Leaderboard NPC"], "Leaderboard NPC")
+    end, "teleport_leaderboard")
+})
+
+TeleportTab:CreateButton({
+    Name = "🎁 Daily Rewards",
+    Callback = CreateSafeCallback(function()
+        NPCSystem:TeleportToNPC(NPCSystem.customNPCs["Daily Rewards"], "Daily Rewards")
+    end, "teleport_daily")
+})
+
+-- ═══════════════════════════════════════════════════════════════
+-- AUTO-DETECTED NPCs MANAGEMENT
+-- ═══════════════════════════════════════════════════════════════
+
+TeleportTab:CreateParagraph({
+    Title = "🤖 Auto-Detected NPCs",
+    Content = "NPCs automatically detected in the game world"
+})
+
+TeleportTab:CreateButton({
+    Name = "🔄 List Detected NPCs",
+    Callback = CreateSafeCallback(function()
+        NPCSystem:DetectNPCs()
+        local message = "Detected NPCs:\n"
+        local count = 0
+        
+        for name, data in pairs(NPCSystem.detectedNPCs) do
+            count = count + 1
+            local distance = math.floor(NPCSystem:GetDistanceToNPC(data))
+            message = message .. "• " .. name .. " (" .. distance .. " studs)\n"
+            
+            if count >= 5 then -- Limit to first 5 for notification
+                message = message .. "... and more!"
+                break
+            end
+        end
+        
+        if count == 0 then
+            message = "No NPCs detected. Try getting closer to spawn area."
+        end
+        
+        Notify("🤖 Detected NPCs", message)
+        print("=== FULL NPC LIST ===")
+        for name, data in pairs(NPCSystem.detectedNPCs) do
+            print(string.format("%s: CFrame.new(%.2f, %.2f, %.2f)", name, data.x, data.y, data.z))
+        end
+        print("====================")
+    end, "list_detected_npcs")
+})
+
+-- Initialize NPC system
+task.spawn(function()
+    task.wait(3) -- Wait for game to load
+    NPCSystem:DetectNPCs()
+    local count = NPCSystem:GetNPCCount()
+    Notify("👥 NPC System", "Initialized! Found " .. count .. " NPCs")
+    print("XSAN: NPC Teleportation System loaded successfully!")
+end)
+
 -- === TAB 4: INVENTORY ===
-print("XSAN: Creating INVENTORY tab...")
 local InventoryTab = Window:CreateTab("🎒 INVENTORY", "🎒")
-print("XSAN: INVENTORY tab created successfully!")
 
 InventoryTab:CreateParagraph({
     Title = "🎒 Smart Inventory Management",
@@ -863,9 +1443,7 @@ InventoryTab:CreateButton({
 })
 
 -- === TAB 5: ANALYTICS ===
-print("XSAN: Creating ANALYTICS tab...")
 local AnalyticsTab = Window:CreateTab("📊 ANALYTICS", "📊")
-print("XSAN: ANALYTICS tab created successfully!")
 
 AnalyticsTab:CreateParagraph({
     Title = "📊 Fishing Analytics & Statistics",
@@ -921,10 +1499,211 @@ AnalyticsTab:CreateButton({
     end, "export_data_btn")
 })
 
--- === TAB 6: SETTINGS ===
-print("XSAN: Creating SETTINGS tab...")
+-- === TAB 6: BUY SYSTEM ===
+local BuySystemTab = Window:CreateTab("🛒 BUY SYSTEM", "🛒")
+
+BuySystemTab:CreateParagraph({
+    Title = "🛒 Smart Buy System Automation",
+    Content = "Automated purchasing, selling, and shop management with intelligent detection of all game purchase events."
+})
+
+-- Buy System Variables
+local autoBuyEnabled = false
+local autoSellItemsEnabled = false
+local autoEquipmentBuy = false
+local smartPurchasing = false
+local buyBudget = 1000
+local minCashThreshold = 500
+
+-- Auto Buy Functions
+local function executeRemoteFunction(remoteName, ...)
+    pcall(function()
+        if remotes[remoteName] then
+            if remotes[remoteName]:IsA("RemoteFunction") then
+                remotes[remoteName]:InvokeServer(...)
+            else
+                remotes[remoteName]:FireServer(...)
+            end
+        end
+    end)
+end
+
+-- Smart Auto Sell Items
+BuySystemTab:CreateToggle({
+    Name = "💰 Auto Sell Items",
+    CurrentValue = autoSellItemsEnabled,
+    Callback = CreateSafeCallback(function(value)
+        autoSellItemsEnabled = value
+        
+        if value then
+            Notify("💰 Auto Sell", "Started selling items automatically!")
+            task.spawn(function()
+                while autoSellItemsEnabled do
+                    pcall(function()
+                        -- Try multiple sell methods detected
+                        executeRemoteFunction("SellItem")
+                        wait(1)
+                        executeRemoteFunction("SellAllItems")
+                    end)
+                    wait(30) -- Sell every 30 seconds
+                end
+            end)
+        else
+            Notify("💰 Auto Sell", "Stopped!")
+        end
+    end, "auto_sell_items_toggle")
+})
+
+-- Auto Equipment Purchase
+BuySystemTab:CreateToggle({
+    Name = "🎣 Auto Buy Equipment",
+    CurrentValue = autoEquipmentBuy,
+    Callback = CreateSafeCallback(function(value)
+        autoEquipmentBuy = value
+        
+        if value then
+            Notify("🎣 Auto Equipment", "Smart equipment purchasing enabled!")
+            task.spawn(function()
+                while autoEquipmentBuy do
+                    pcall(function()
+                        -- Auto buy fishing gear when needed
+                        executeRemoteFunction("PurchaseFishingRod", "BestRod")
+                        wait(5)
+                        executeRemoteFunction("PurchaseBait", "BestBait")
+                        wait(5)
+                        executeRemoteFunction("PurchaseGear", "BestGear")
+                        wait(5)
+                        executeRemoteFunction("PurchaseBoat", "BestBoat")
+                    end)
+                    wait(120) -- Check every 2 minutes
+                end
+            end)
+        else
+            Notify("🎣 Auto Equipment", "Disabled!")
+        end
+    end, "auto_equipment_toggle")
+})
+
+-- Smart Purchase Manager
+BuySystemTab:CreateToggle({
+    Name = "🧠 Smart Purchase Manager",
+    CurrentValue = smartPurchasing,
+    Callback = CreateSafeCallback(function(value)
+        smartPurchasing = value
+        
+        if value then
+            Notify("🧠 Smart Purchasing", "AI purchase decisions enabled!")
+            task.spawn(function()
+                while smartPurchasing do
+                    pcall(function()
+                        -- Check if player has enough money before purchasing
+                        local playerStats = LocalPlayer:FindFirstChild("leaderstats")
+                        if playerStats and playerStats:FindFirstChild("Cash") then
+                            local currentCash = playerStats.Cash.Value
+                            
+                            if currentCash > minCashThreshold + buyBudget then
+                                -- Safe to make purchases
+                                executeRemoteFunction("PurchaseWeatherEvent")
+                                wait(2)
+                                executeRemoteFunction("PurchaseSkinCrate")
+                            end
+                        end
+                    end)
+                    wait(60) -- Check every minute
+                end
+            end)
+        else
+            Notify("🧠 Smart Purchasing", "Disabled!")
+        end
+    end, "smart_purchase_toggle")
+})
+
+-- Buy Budget Slider
+BuySystemTab:CreateSlider({
+    Name = "💵 Buy Budget",
+    Range = {100, 10000},
+    Increment = 100,
+    CurrentValue = buyBudget,
+    Callback = CreateSafeCallback(function(value)
+        buyBudget = value
+        Notify("💵 Budget Set", "Max spending: $" .. value)
+    end, "buy_budget_slider")
+})
+
+-- Min Cash Threshold
+BuySystemTab:CreateSlider({
+    Name = "🏦 Min Cash Reserve",
+    Range = {0, 5000},
+    Increment = 100,
+    CurrentValue = minCashThreshold,
+    Callback = CreateSafeCallback(function(value)
+        minCashThreshold = value
+        Notify("🏦 Reserve Set", "Keep minimum: $" .. value)
+    end, "cash_threshold_slider")
+})
+
+-- Manual Buy Buttons
+BuySystemTab:CreateButton({
+    Name = "🎣 Buy Best Fishing Rod",
+    Callback = CreateSafeCallback(function()
+        executeRemoteFunction("PurchaseFishingRod", "BestRod")
+        Notify("🎣 Purchase", "Attempting to buy best fishing rod!")
+    end, "buy_rod_btn")
+})
+
+BuySystemTab:CreateButton({
+    Name = "🪱 Buy Best Bait",
+    Callback = CreateSafeCallback(function()
+        executeRemoteFunction("PurchaseBait", "BestBait")
+        Notify("🪱 Purchase", "Attempting to buy best bait!")
+    end, "buy_bait_btn")
+})
+
+BuySystemTab:CreateButton({
+    Name = "⚓ Buy Best Boat",
+    Callback = CreateSafeCallback(function()
+        executeRemoteFunction("PurchaseBoat", "BestBoat")
+        Notify("⚓ Purchase", "Attempting to buy best boat!")
+    end, "buy_boat_btn")
+})
+
+BuySystemTab:CreateButton({
+    Name = "🎁 Buy Skin Crate",
+    Callback = CreateSafeCallback(function()
+        executeRemoteFunction("PurchaseSkinCrate")
+        Notify("🎁 Purchase", "Attempting to buy skin crate!")
+    end, "buy_crate_btn")
+})
+
+BuySystemTab:CreateButton({
+    Name = "💎 Sell All Items Now",
+    Callback = CreateSafeCallback(function()
+        executeRemoteFunction("SellAllItems")
+        Notify("💎 Sold!", "Selling all items now!")
+        fishingAnalytics.totalValue = fishingAnalytics.totalValue + 1000 -- Estimate
+    end, "sell_all_now_btn")
+})
+
+-- Weather Event Purchase
+BuySystemTab:CreateButton({
+    Name = "🌦️ Buy Weather Event",
+    Callback = CreateSafeCallback(function()
+        executeRemoteFunction("PurchaseWeatherEvent")
+        Notify("🌦️ Weather", "Attempting to purchase weather event!")
+    end, "buy_weather_btn")
+})
+
+-- Gamepass Purchase
+BuySystemTab:CreateButton({
+    Name = "🎫 Prompt Gamepass Purchase",
+    Callback = CreateSafeCallback(function()
+        executeRemoteFunction("PromptGamePassPurchase")
+        Notify("🎫 Gamepass", "Gamepass purchase prompt opened!")
+    end, "gamepass_btn")
+})
+
+-- === TAB 7: SETTINGS ===
 local SettingsTab = Window:CreateTab("⚙️ SETTINGS", "⚙️")
-print("XSAN: SETTINGS tab created successfully!")
 
 SettingsTab:CreateParagraph({
     Title = "⚙️ Advanced Settings & Configuration",
@@ -957,7 +1736,15 @@ SettingsTab:CreateButton({
 })
 
 SettingsTab:CreateButton({
-    Name = "🔧 Advanced Tools Interface",
+    Name = "� Enhanced Buy System Detector",
+    Callback = CreateSafeCallback(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/part2/main/buy_system_detector.lua"))()
+        Notify("🛒 Buy Detector", "Enhanced buy system detector loaded!")
+    end, "buy_detector_btn")
+})
+
+SettingsTab:CreateButton({
+    Name = "�🔧 Advanced Tools Interface",
     Callback = CreateSafeCallback(function()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/donitono/part2/main/unified_tools_interface.lua"))()
         Notify("🔧 Tools Loaded", "Advanced tools interface loaded!")
@@ -987,41 +1774,9 @@ SettingsTab:CreateButton({
     end, "destroy_ui_btn")
 })
 
--- Final setup with validation
-print("XSAN: Validating all tabs...")
-
--- Validate that all tabs were created successfully
-local tabsCreated = {
-    Info = InfoTab ~= nil,
-    AutoFish = AutoFishTab ~= nil,
-    Teleport = TeleportTab ~= nil,
-    Inventory = InventoryTab ~= nil,
-    Analytics = AnalyticsTab ~= nil,
-    Settings = SettingsTab ~= nil
-}
-
-print("XSAN: Tab validation results:")
-for tabName, created in pairs(tabsCreated) do
-    print("  -", tabName, ":", created and "✅ Created" or "❌ Failed")
-end
-
-local allTabsCreated = true
-for _, created in pairs(tabsCreated) do
-    if not created then
-        allTabsCreated = false
-        break
-    end
-end
-
-if allTabsCreated then
-    print("XSAN: All tabs created successfully!")
-    Notify("✅ UI Ready!", "XSAN Fish It Pro Ultimate v2.0 loaded successfully! All 6 tabs are ready. Use tab navigation for best experience.")
-else
-    warn("XSAN: Some tabs failed to create!")
-    Notify("⚠️ Warning", "Some UI tabs failed to load. Check console for details.")
-end
-
+-- Final setup
 print("XSAN: Modern UI setup complete!")
+Notify("✅ Ready!", "XSAN Fish It Pro Ultimate v2.0 loaded successfully! Use the tab navigation for best experience.")
 
 -- ═══════════════════════════════════════════════════════════════
 -- FLOATING TOGGLE BUTTON - Hide/Show UI
