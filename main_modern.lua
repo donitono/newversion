@@ -514,6 +514,187 @@ function Rayfield:CreateWindow(Settings)
 			return Container
 		end
 
+		function Tab:CreateInput(Settings)
+			local Container = Instance.new("Frame")
+			Container.Size = UDim2.new(1, 0, 0, 35)
+			Container.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+			Container.BorderSizePixel = 0
+			Container.Parent = Tab.Content
+
+			local ContainerCorner = Instance.new("UICorner")
+			ContainerCorner.CornerRadius = UDim.new(0, 6)
+			ContainerCorner.Parent = Container
+
+			local Label = Instance.new("TextLabel")
+			Label.Size = UDim2.new(0.4, 0, 1, 0)
+			Label.Position = UDim2.new(0, 10, 0, 0)
+			Label.BackgroundTransparency = 1
+			Label.Text = Settings.Name or "Input"
+			Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+			Label.Font = Enum.Font.SourceSans
+			Label.TextSize = 11
+			Label.TextXAlignment = Enum.TextXAlignment.Left
+			Label.Parent = Container
+
+			local InputBox = Instance.new("TextBox")
+			InputBox.Size = UDim2.new(0.6, -20, 0, 25)
+			InputBox.Position = UDim2.new(0.4, 10, 0, 5)
+			InputBox.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+			InputBox.BorderSizePixel = 0
+			InputBox.Text = ""
+			InputBox.PlaceholderText = Settings.PlaceholderText or "Enter text..."
+			InputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+			InputBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
+			InputBox.Font = Enum.Font.SourceSans
+			InputBox.TextSize = 10
+			InputBox.ClearTextOnFocus = false
+			InputBox.Parent = Container
+
+			local InputCorner = Instance.new("UICorner")
+			InputCorner.CornerRadius = UDim.new(0, 4)
+			InputCorner.Parent = InputBox
+
+			-- Handle text changed
+			InputBox.FocusLost:Connect(function(enterPressed)
+				if Settings.Callback then
+					Settings.Callback(InputBox.Text)
+				end
+				if not Settings.RemoveTextAfterFocusLost then
+					-- Keep the text
+				else
+					InputBox.Text = ""
+				end
+			end)
+
+			return Container
+		end
+
+		function Tab:CreateSlider(Settings)
+			local Container = Instance.new("Frame")
+			Container.Size = UDim2.new(1, 0, 0, 50)
+			Container.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+			Container.BorderSizePixel = 0
+			Container.Parent = Tab.Content
+
+			local ContainerCorner = Instance.new("UICorner")
+			ContainerCorner.CornerRadius = UDim.new(0, 6)
+			ContainerCorner.Parent = Container
+
+			local Label = Instance.new("TextLabel")
+			Label.Size = UDim2.new(1, -20, 0, 20)
+			Label.Position = UDim2.new(0, 10, 0, 5)
+			Label.BackgroundTransparency = 1
+			Label.Text = Settings.Name or "Slider"
+			Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+			Label.Font = Enum.Font.SourceSans
+			Label.TextSize = 11
+			Label.TextXAlignment = Enum.TextXAlignment.Left
+			Label.Parent = Container
+
+			local SliderTrack = Instance.new("Frame")
+			SliderTrack.Size = UDim2.new(1, -40, 0, 8)
+			SliderTrack.Position = UDim2.new(0, 20, 0, 30)
+			SliderTrack.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+			SliderTrack.BorderSizePixel = 0
+			SliderTrack.Parent = Container
+
+			local TrackCorner = Instance.new("UICorner")
+			TrackCorner.CornerRadius = UDim.new(0.5, 0)
+			TrackCorner.Parent = SliderTrack
+
+			local SliderFill = Instance.new("Frame")
+			SliderFill.Size = UDim2.new(0.5, 0, 1, 0)
+			SliderFill.Position = UDim2.new(0, 0, 0, 0)
+			SliderFill.BackgroundColor3 = Color3.fromRGB(60, 120, 180)
+			SliderFill.BorderSizePixel = 0
+			SliderFill.Parent = SliderTrack
+
+			local FillCorner = Instance.new("UICorner")
+			FillCorner.CornerRadius = UDim.new(0.5, 0)
+			FillCorner.Parent = SliderFill
+
+			local SliderButton = Instance.new("TextButton")
+			SliderButton.Size = UDim2.new(0, 16, 0, 16)
+			SliderButton.Position = UDim2.new(0.5, -8, 0.5, -8)
+			SliderButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			SliderButton.BorderSizePixel = 0
+			SliderButton.Text = ""
+			SliderButton.Parent = SliderTrack
+
+			local ButtonCorner = Instance.new("UICorner")
+			ButtonCorner.CornerRadius = UDim.new(0.5, 0)
+			ButtonCorner.Parent = SliderButton
+
+			local ValueLabel = Instance.new("TextLabel")
+			ValueLabel.Size = UDim2.new(0, 60, 0, 20)
+			ValueLabel.Position = UDim2.new(1, -60, 0, 5)
+			ValueLabel.BackgroundTransparency = 1
+			ValueLabel.Text = tostring(Settings.CurrentValue or Settings.Range[1])
+			ValueLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+			ValueLabel.Font = Enum.Font.SourceSans
+			ValueLabel.TextSize = 10
+			ValueLabel.TextXAlignment = Enum.TextXAlignment.Right
+			ValueLabel.Parent = Container
+
+			-- Slider functionality
+			local Range = Settings.Range or {0, 100}
+			local Increment = Settings.Increment or 1
+			local CurrentValue = Settings.CurrentValue or Range[1]
+
+			local function UpdateSlider(value)
+				CurrentValue = math.clamp(value, Range[1], Range[2])
+				CurrentValue = math.floor(CurrentValue / Increment + 0.5) * Increment
+				
+				local percent = (CurrentValue - Range[1]) / (Range[2] - Range[1])
+				SliderFill.Size = UDim2.new(percent, 0, 1, 0)
+				SliderButton.Position = UDim2.new(percent, -8, 0.5, -8)
+				ValueLabel.Text = tostring(CurrentValue)
+				
+				if Settings.Callback then
+					Settings.Callback(CurrentValue)
+				end
+			end
+
+			-- Initialize
+			UpdateSlider(CurrentValue)
+
+			-- Mouse interaction
+			local dragging = false
+			SliderButton.MouseButton1Down:Connect(function()
+				dragging = true
+			end)
+
+			game:GetService("UserInputService").InputEnded:Connect(function(input)
+				if input.UserInputType == Enum.UserInputType.MouseButton1 then
+					dragging = false
+				end
+			end)
+
+			game:GetService("UserInputService").InputChanged:Connect(function(input)
+				if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+					local mouse = game.Players.LocalPlayer:GetMouse()
+					local trackAbsPos = SliderTrack.AbsolutePosition
+					local trackAbsSize = SliderTrack.AbsoluteSize
+					
+					local percent = math.clamp((mouse.X - trackAbsPos.X) / trackAbsSize.X, 0, 1)
+					local value = Range[1] + percent * (Range[2] - Range[1])
+					UpdateSlider(value)
+				end
+			end)
+
+			SliderTrack.MouseButton1Down:Connect(function()
+				local mouse = game.Players.LocalPlayer:GetMouse()
+				local trackAbsPos = SliderTrack.AbsolutePosition
+				local trackAbsSize = SliderTrack.AbsoluteSize
+				
+				local percent = math.clamp((mouse.X - trackAbsPos.X) / trackAbsSize.X, 0, 1)
+				local value = Range[1] + percent * (Range[2] - Range[1])
+				UpdateSlider(value)
+			end)
+
+			return Container
+		end
+
 		return Tab
 	end
 
