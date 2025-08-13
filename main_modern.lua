@@ -1037,12 +1037,6 @@ TeleportTab:CreateParagraph({
 local teleportLocations = {
     -- Main Areas
     ["🏠 Spawn"] = {x = 1, y = 18, z = 134},
-    ["🏪 Shop (Alex)"] = {x = -28.43, y = 4.50, z = 2891.28},
-    ["🏪 Shop (Joe)"] = {x = 112.01, y = 4.75, z = 2877.32},
-    ["🏪 Shop (Seth)"] = {x = 72.02, y = 4.58, z = 2885.28},
-    ["🎣 Rod Shop (Marc)"] = {x = 454, y = 150, z = 229},
-    ["⚓ Shipwright"] = {x = 343, y = 135, z = 271},
-    ["📦 Storage (Henry)"] = {x = 491, y = 150, z = 272},
     
     -- Fishing Spots
     ["🌊 Ocean (Starter)"] = {x = 0, y = 20, z = 200},
@@ -1050,7 +1044,7 @@ local teleportLocations = {
     ["🏝️ Coral Reef"] = {x = 500, y = 130, z = -200},
     ["🌅 Deep Ocean"] = {x = 1000, y = 130, z = 1000},
     ["❄️ Ice Lake"] = {x = -1200, y = 140, z = -800},
-    ["� Lava Pool"] = {x = 800, y = 160, z = 800},
+    ["🌋 Lava Pool"] = {x = 800, y = 160, z = 800},
     
     -- Events & Special
     ["🌟 Isonade Event"] = {x = -1442, y = 135, z = 1006},
@@ -1524,6 +1518,164 @@ task.spawn(function()
     local count = NPCSystem:GetNPCCount()
     Notify("👥 NPC System", "Initialized! Found " .. count .. " NPCs")
     print("XSAN: NPC Teleportation System loaded successfully!")
+end)
+
+-- ═══════════════════════════════════════════════════════════════
+-- PLAYER TELEPORTATION SYSTEM
+-- ═══════════════════════════════════════════════════════════════
+
+TeleportTab:CreateParagraph({
+    Title = "👥 Player Teleportation System", 
+    Content = "Teleport to other players in the server. Great for meeting friends or following experienced fishers!"
+})
+
+-- Player System for tracking and teleportation
+local PlayerSystem = {
+    playerButtons = {},
+    lastRefresh = 0,
+    refreshCooldown = 2,
+    playerTeleportCooldown = false
+}
+
+-- Function to teleport to a player
+local function teleportToPlayer(targetPlayer)
+    if PlayerSystem.playerTeleportCooldown then
+        Notify("⏰ Cooldown", "Please wait before teleporting to another player")
+        return
+    end
+    
+    if not character or not character:FindFirstChild("HumanoidRootPart") then
+        Notify("❌ Error", "Your character not found")
+        return
+    end
+    
+    if not targetPlayer or not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        Notify("❌ Error", targetPlayer and (targetPlayer.Name .. " is not spawned") or "Player not found")
+        return
+    end
+    
+    PlayerSystem.playerTeleportCooldown = true
+    
+    pcall(function()
+        local targetPos = targetPlayer.Character.HumanoidRootPart.Position
+        local teleportPos = CFrame.new(targetPos.X + 3, targetPos.Y + 1, targetPos.Z + 3) -- Offset to avoid colliding
+        character.HumanoidRootPart.CFrame = teleportPos
+        
+        -- Calculate distance for feedback
+        task.spawn(function()
+            task.wait(0.5)
+            if character and character:FindFirstChild("HumanoidRootPart") and targetPlayer.Character then
+                local distance = math.floor((character.HumanoidRootPart.Position - targetPlayer.Character.HumanoidRootPart.Position).Magnitude)
+                Notify("✅ Teleported to " .. targetPlayer.Name, "Distance: " .. distance .. " studs")
+            end
+        end)
+    end)
+    
+    task.spawn(function()
+        task.wait(3)
+        PlayerSystem.playerTeleportCooldown = false
+    end)
+end
+
+-- Function to refresh player list and create buttons
+local function refreshPlayerList()
+    if tick() - PlayerSystem.lastRefresh < PlayerSystem.refreshCooldown then
+        Notify("⏰ Refresh Cooldown", "Please wait before refreshing again")
+        return
+    end
+    
+    PlayerSystem.lastRefresh = tick()
+    
+    -- Clear existing player buttons (in a real implementation, you'd want to manage this better)
+    -- For now, we'll create new ones since UI library doesn't support dynamic removal
+    
+    local playerCount = 0
+    local onlinePlayers = {}
+    
+    -- Collect all players except self
+    for _, targetPlayer in pairs(Players:GetPlayers()) do
+        if targetPlayer ~= LocalPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            playerCount = playerCount + 1
+            table.insert(onlinePlayers, targetPlayer)
+        end
+    end
+    
+    if playerCount == 0 then
+        Notify("👥 Player List", "No other players found in the server")
+        return
+    end
+    
+    Notify("👥 Player List", "Found " .. playerCount .. " players online")
+    
+    -- Create buttons for first few players (to avoid UI overflow)
+    for i = 1, math.min(playerCount, 6) do -- Limit to 6 players to avoid UI cluttering
+        local targetPlayer = onlinePlayers[i]
+        if targetPlayer then
+            -- Create player teleport button
+            TeleportTab:CreateButton({
+                Name = "👤 " .. targetPlayer.Name,
+                Callback = CreateSafeCallback(function()
+                    teleportToPlayer(targetPlayer)
+                end, "teleport_player_" .. targetPlayer.Name)
+            })
+        end
+    end
+    
+    if playerCount > 6 then
+        Notify("👥 More Players", "Showing first 6 of " .. playerCount .. " players. Refresh to see different players.")
+    end
+end
+
+-- Refresh Player List Button
+TeleportTab:CreateButton({
+    Name = "🔄 Refresh Player List",
+    Callback = CreateSafeCallback(function()
+        refreshPlayerList()
+    end, "refresh_player_list")
+})
+
+-- Show Current Players Button (shows list in notification)
+TeleportTab:CreateButton({
+    Name = "👁️ Show All Players",
+    Callback = CreateSafeCallback(function()
+        local playerList = {}
+        local count = 0
+        
+        for _, targetPlayer in pairs(Players:GetPlayers()) do
+            if targetPlayer ~= LocalPlayer then
+                count = count + 1
+                local status = "❌ Not Spawned"
+                if targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    status = "✅ Online"
+                    -- Calculate distance if both players are spawned
+                    if character and character:FindFirstChild("HumanoidRootPart") then
+                        local distance = math.floor((character.HumanoidRootPart.Position - targetPlayer.Character.HumanoidRootPart.Position).Magnitude)
+                        status = status .. " (" .. distance .. " studs)"
+                    end
+                end
+                table.insert(playerList, targetPlayer.Name .. " - " .. status)
+            end
+        end
+        
+        if count == 0 then
+            Notify("👥 Player List", "You're alone in this server!")
+        else
+            local message = "Players in server (" .. count .. "):\n" .. table.concat(playerList, "\n")
+            Notify("👥 All Players", message)
+            print("=== FULL PLAYER LIST ===")
+            for _, line in ipairs(playerList) do
+                print(line)
+            end
+            print("========================")
+        end
+    end, "show_all_players")
+})
+
+-- Auto-initialize player list on script start
+task.spawn(function()
+    task.wait(5) -- Wait for game to fully load
+    -- Don't auto-refresh to avoid UI spam, let user manually refresh when needed
+    Notify("👥 Player System", "Ready! Click 'Refresh Player List' to see other players")
 end)
 
 -- === TAB 4: INVENTORY ===
