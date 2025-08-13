@@ -150,13 +150,495 @@ end
 -- Load Modern UI Library (Embedded)
 print("XSAN: Loading Modern UI Library...")
 
--- Embedded UI library (fixed version) with enhanced error handling
-local Rayfield
-local loadSuccess = false
+-- Simple direct UI creation (no embedded loadstring)
+local Rayfield = {}
 
--- Try to load the embedded UI library
-pcall(function()
-    Rayfield = loadstring([[
+-- Services
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local GuiService = game:GetService("GuiService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+
+-- Variables
+local Player = Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
+
+-- Create main ScreenGui with maximum visibility
+local RayfieldLibrary = Instance.new("ScreenGui")
+RayfieldLibrary.Name = "RayfieldLibrary"
+RayfieldLibrary.ResetOnSpawn = false
+RayfieldLibrary.IgnoreGuiInset = true
+RayfieldLibrary.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+RayfieldLibrary.DisplayOrder = 999999 -- Maximum priority
+
+-- Force parent to PlayerGui for compatibility
+RayfieldLibrary.Parent = PlayerGui
+
+print("XSAN: ScreenGui created and parented successfully!")
+
+-- Variables for scaling and themes
+local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+local screenSize = workspace.CurrentCamera.ViewportSize
+
+-- Global tracking
+local CurrentTabs = {}
+local CurrentTab = nil
+
+function Rayfield:CreateWindow(Settings)
+	local Window = {}
+	
+	-- Clear any existing tabs
+	CurrentTabs = {}
+	
+	-- Create main container with maximum visibility
+	local Main = Instance.new("Frame")
+	Main.Name = "Main"
+	Main.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+	Main.BorderSizePixel = 0
+	Main.Position = UDim2.new(0.5, -300, 0.5, -190) -- Centered
+	Main.Size = UDim2.new(0, 600, 0, 380) -- Fixed size
+	Main.AnchorPoint = Vector2.new(0, 0) -- Remove anchor for compatibility
+	Main.Visible = true -- Force visible
+	Main.ZIndex = 1000 -- High z-index
+	Main.Parent = RayfieldLibrary
+
+	print("XSAN: Main frame created - Size: 600x380, Position: Centered")
+
+	local MainCorner = Instance.new("UICorner")
+	MainCorner.CornerRadius = UDim.new(0, 10)
+	MainCorner.Parent = Main
+
+	-- Create title bar
+	local TitleBar = Instance.new("Frame")
+	TitleBar.Name = "TitleBar"
+	TitleBar.Size = UDim2.new(1, 0, 0, 40)
+	TitleBar.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+	TitleBar.BorderSizePixel = 0
+	TitleBar.Parent = Main
+
+	local TitleCorner = Instance.new("UICorner")
+	TitleCorner.CornerRadius = UDim.new(0, 10)
+	TitleCorner.Parent = TitleBar
+
+	-- Fix corner for bottom
+	local TitleFix = Instance.new("Frame")
+	TitleFix.Size = UDim2.new(1, 0, 0, 10)
+	TitleFix.Position = UDim2.new(0, 0, 1, -10)
+	TitleFix.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+	TitleFix.BorderSizePixel = 0
+	TitleFix.Parent = TitleBar
+
+	-- Title text
+	local Title = Instance.new("TextLabel")
+	Title.Size = UDim2.new(1, -60, 1, 0)
+	Title.Position = UDim2.new(0, 10, 0, 0)
+	Title.BackgroundTransparency = 1
+	Title.Text = Settings.Name or "XSAN Fish It Pro"
+	Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+	Title.TextScaled = true
+	Title.Font = Enum.Font.SourceSansBold
+	Title.Parent = TitleBar
+
+	-- Add close button for testing
+	local CloseBtn = Instance.new("TextButton")
+	CloseBtn.Size = UDim2.new(0, 40, 0, 30)
+	CloseBtn.Position = UDim2.new(1, -45, 0, 5)
+	CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+	CloseBtn.Text = "×"
+	CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	CloseBtn.Font = Enum.Font.SourceSansBold
+	CloseBtn.TextSize = 18
+	CloseBtn.Parent = TitleBar
+
+	local CloseBtnCorner = Instance.new("UICorner")
+	CloseBtnCorner.CornerRadius = UDim.new(0, 6)
+	CloseBtnCorner.Parent = CloseBtn
+
+	CloseBtn.MouseButton1Click:Connect(function()
+		RayfieldLibrary.Enabled = not RayfieldLibrary.Enabled
+	end)
+
+	-- Create tab container
+	local TabContainer = Instance.new("Frame")
+	TabContainer.Name = "TabContainer"
+	TabContainer.Size = UDim2.new(1, 0, 0, 35)
+	TabContainer.Position = UDim2.new(0, 0, 0, 45)
+	TabContainer.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+	TabContainer.BorderSizePixel = 0
+	TabContainer.Parent = Main
+
+	local TabLayout = Instance.new("UIListLayout")
+	TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	TabLayout.FillDirection = Enum.FillDirection.Horizontal
+	TabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	TabLayout.Padding = UDim.new(0, 2)
+	TabLayout.Parent = TabContainer
+
+	-- Create content area
+	local ContentFrame = Instance.new("Frame")
+	ContentFrame.Name = "ContentFrame"
+	ContentFrame.Size = UDim2.new(1, 0, 1, -85)
+	ContentFrame.Position = UDim2.new(0, 0, 0, 85)
+	ContentFrame.BackgroundTransparency = 1
+	ContentFrame.Parent = Main
+
+	function Window:CreateTab(Name, Icon)
+		local Tab = {}
+		local TabCount = #CurrentTabs + 1
+		
+		-- Create tab button
+		local TabButton = Instance.new("TextButton")
+		TabButton.Size = UDim2.new(0, 120, 1, 0)
+		TabButton.BackgroundColor3 = TabCount == 1 and Color3.fromRGB(60, 120, 180) or Color3.fromRGB(50, 50, 60)
+		TabButton.Text = Name or ("Tab " .. TabCount)
+		TabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+		TabButton.Font = Enum.Font.SourceSans
+		TabButton.TextSize = 12
+		TabButton.BorderSizePixel = 0
+		TabButton.Parent = TabContainer
+
+		local TabCorner = Instance.new("UICorner")
+		TabCorner.CornerRadius = UDim.new(0, 6)
+		TabCorner.Parent = TabButton
+
+		-- Create content for this tab
+		local TabContent = Instance.new("ScrollingFrame")
+		TabContent.Size = UDim2.new(1, -10, 1, -10)
+		TabContent.Position = UDim2.new(0, 5, 0, 5)
+		TabContent.BackgroundTransparency = 1
+		TabContent.ScrollBarThickness = 6
+		TabContent.Visible = TabCount == 1
+		TabContent.CanvasSize = UDim2.new(0, 0, 0, 0)
+		TabContent.Parent = ContentFrame
+
+		local ContentLayout = Instance.new("UIListLayout")
+		ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		ContentLayout.Padding = UDim.new(0, 5)
+		ContentLayout.Parent = TabContent
+
+		-- Auto-resize canvas
+		ContentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+			TabContent.CanvasSize = UDim2.new(0, 0, 0, ContentLayout.AbsoluteContentSize.Y + 20)
+		end)
+
+		Tab.Content = TabContent
+		Tab.Button = TabButton
+
+		-- Tab switching
+		TabButton.MouseButton1Click:Connect(function()
+			-- Hide all tabs
+			for _, tab in pairs(CurrentTabs) do
+				tab.Content.Visible = false
+				tab.Button.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+			end
+			
+			-- Show this tab
+			TabContent.Visible = true
+			TabButton.BackgroundColor3 = Color3.fromRGB(60, 120, 180)
+			CurrentTab = Tab
+		end)
+
+		CurrentTabs[TabCount] = Tab
+
+		-- Tab-specific Create methods
+		function Tab:CreateParagraph(Settings)
+			local Container = Instance.new("Frame")
+			Container.Size = UDim2.new(1, 0, 0, 70)
+			Container.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+			Container.BorderSizePixel = 0
+			Container.Parent = TabContent
+
+			local ContainerCorner = Instance.new("UICorner")
+			ContainerCorner.CornerRadius = UDim.new(0, 6)
+			ContainerCorner.Parent = Container
+
+			local Title = Instance.new("TextLabel")
+			Title.Size = UDim2.new(1, -20, 0, 25)
+			Title.Position = UDim2.new(0, 10, 0, 5)
+			Title.BackgroundTransparency = 1
+			Title.Text = Settings.Title or "Paragraph"
+			Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+			Title.Font = Enum.Font.SourceSansBold
+			Title.TextSize = 14
+			Title.TextXAlignment = Enum.TextXAlignment.Left
+			Title.Parent = Container
+
+			local Content = Instance.new("TextLabel")
+			Content.Size = UDim2.new(1, -20, 1, -30)
+			Content.Position = UDim2.new(0, 10, 0, 30)
+			Content.BackgroundTransparency = 1
+			Content.Text = Settings.Content or "Content"
+			Content.TextColor3 = Color3.fromRGB(200, 200, 200)
+			Content.Font = Enum.Font.SourceSans
+			Content.TextSize = 12
+			Content.TextXAlignment = Enum.TextXAlignment.Left
+			Content.TextYAlignment = Enum.TextYAlignment.Top
+			Content.TextWrapped = true
+			Content.Parent = Container
+
+			return Container
+		end
+
+		function Tab:CreateButton(Settings)
+			local Container = Instance.new("Frame")
+			Container.Size = UDim2.new(1, 0, 0, 45)
+			Container.BackgroundTransparency = 1
+			Container.Parent = TabContent
+
+			local Button = Instance.new("TextButton")
+			Button.Size = UDim2.new(1, -10, 1, -5)
+			Button.Position = UDim2.new(0, 5, 0, 0)
+			Button.BackgroundColor3 = Color3.fromRGB(60, 120, 180)
+			Button.Text = Settings.Name or "Button"
+			Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+			Button.Font = Enum.Font.SourceSansBold
+			Button.TextSize = 14
+			Button.BorderSizePixel = 0
+			Button.Parent = Container
+
+			local ButtonCorner = Instance.new("UICorner")
+			ButtonCorner.CornerRadius = UDim.new(0, 6)
+			ButtonCorner.Parent = Button
+
+			Button.MouseButton1Click:Connect(function()
+				if Settings.Callback then
+					pcall(Settings.Callback)
+				end
+			end)
+
+			return Button
+		end
+
+		function Tab:CreateToggle(Settings)
+			local Container = Instance.new("Frame")
+			Container.Size = UDim2.new(1, 0, 0, 45)
+			Container.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+			Container.BorderSizePixel = 0
+			Container.Parent = TabContent
+
+			local ContainerCorner = Instance.new("UICorner")
+			ContainerCorner.CornerRadius = UDim.new(0, 6)
+			ContainerCorner.Parent = Container
+
+			local Label = Instance.new("TextLabel")
+			Label.Size = UDim2.new(1, -70, 1, 0)
+			Label.Position = UDim2.new(0, 10, 0, 0)
+			Label.BackgroundTransparency = 1
+			Label.Text = Settings.Name or "Toggle"
+			Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+			Label.Font = Enum.Font.SourceSans
+			Label.TextSize = 14
+			Label.TextXAlignment = Enum.TextXAlignment.Left
+			Label.Parent = Container
+
+			local Toggle = Instance.new("TextButton")
+			Toggle.Size = UDim2.new(0, 50, 0, 25)
+			Toggle.Position = UDim2.new(1, -60, 0.5, -12.5)
+			Toggle.BackgroundColor3 = Settings.CurrentValue and Color3.fromRGB(60, 120, 180) or Color3.fromRGB(60, 60, 70)
+			Toggle.Text = Settings.CurrentValue and "ON" or "OFF"
+			Toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+			Toggle.Font = Enum.Font.SourceSansBold
+			Toggle.TextSize = 12
+			Toggle.BorderSizePixel = 0
+			Toggle.Parent = Container
+
+			local ToggleCorner = Instance.new("UICorner")
+			ToggleCorner.CornerRadius = UDim.new(0.5, 0)
+			ToggleCorner.Parent = Toggle
+
+			local isToggled = Settings.CurrentValue or false
+
+			Toggle.MouseButton1Click:Connect(function()
+				isToggled = not isToggled
+				Toggle.BackgroundColor3 = isToggled and Color3.fromRGB(60, 120, 180) or Color3.fromRGB(60, 60, 70)
+				Toggle.Text = isToggled and "ON" or "OFF"
+				
+				if Settings.Callback then
+					pcall(Settings.Callback, isToggled)
+				end
+			end)
+
+			return Container
+		end
+
+		function Tab:CreateDropdown(Settings)
+			local Container = Instance.new("Frame")
+			Container.Size = UDim2.new(1, 0, 0, 50)
+			Container.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+			Container.BorderSizePixel = 0
+			Container.Parent = TabContent
+
+			local ContainerCorner = Instance.new("UICorner")
+			ContainerCorner.CornerRadius = UDim.new(0, 6)
+			ContainerCorner.Parent = Container
+
+			local Label = Instance.new("TextLabel")
+			Label.Size = UDim2.new(1, -20, 0, 20)
+			Label.Position = UDim2.new(0, 10, 0, 5)
+			Label.BackgroundTransparency = 1
+			Label.Text = Settings.Name or "Dropdown"
+			Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+			Label.Font = Enum.Font.SourceSans
+			Label.TextSize = 12
+			Label.TextXAlignment = Enum.TextXAlignment.Left
+			Label.Parent = Container
+
+			local Dropdown = Instance.new("TextButton")
+			Dropdown.Size = UDim2.new(1, -20, 0, 20)
+			Dropdown.Position = UDim2.new(0, 10, 0, 25)
+			Dropdown.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+			Dropdown.Text = Settings.CurrentOption or "Select..."
+			Dropdown.TextColor3 = Color3.fromRGB(200, 200, 200)
+			Dropdown.Font = Enum.Font.SourceSans
+			Dropdown.TextSize = 12
+			Dropdown.TextXAlignment = Enum.TextXAlignment.Left
+			Dropdown.BorderSizePixel = 0
+			Dropdown.Parent = Container
+
+			local DropdownCorner = Instance.new("UICorner")
+			DropdownCorner.CornerRadius = UDim.new(0, 4)
+			DropdownCorner.Parent = Dropdown
+
+			Dropdown.MouseButton1Click:Connect(function()
+				if Settings.Options and #Settings.Options > 0 then
+					local randomOption = Settings.Options[math.random(1, #Settings.Options)]
+					Dropdown.Text = randomOption
+					if Settings.Callback then
+						pcall(Settings.Callback, randomOption)
+					end
+				end
+			end)
+
+			return Container
+		end
+
+		function Tab:CreateInput(Settings)
+			local Container = Instance.new("Frame")
+			Container.Size = UDim2.new(1, 0, 0, 60)
+			Container.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+			Container.BorderSizePixel = 0
+			Container.Parent = TabContent
+
+			local ContainerCorner = Instance.new("UICorner")
+			ContainerCorner.CornerRadius = UDim.new(0, 6)
+			ContainerCorner.Parent = Container
+
+			local Label = Instance.new("TextLabel")
+			Label.Size = UDim2.new(1, -20, 0, 25)
+			Label.Position = UDim2.new(0, 10, 0, 5)
+			Label.BackgroundTransparency = 1
+			Label.Text = Settings.Name or "Input"
+			Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+			Label.Font = Enum.Font.SourceSans
+			Label.TextSize = 12
+			Label.TextXAlignment = Enum.TextXAlignment.Left
+			Label.Parent = Container
+
+			local InputBox = Instance.new("TextBox")
+			InputBox.Size = UDim2.new(1, -20, 0, 25)
+			InputBox.Position = UDim2.new(0, 10, 0, 30)
+			InputBox.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+			InputBox.Text = ""
+			InputBox.PlaceholderText = Settings.PlaceholderText or "Enter text..."
+			InputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+			InputBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
+			InputBox.Font = Enum.Font.SourceSans
+			InputBox.TextSize = 12
+			InputBox.ClearTextOnFocus = false
+			InputBox.Parent = Container
+
+			local InputCorner = Instance.new("UICorner")
+			InputCorner.CornerRadius = UDim.new(0, 4)
+			InputCorner.Parent = InputBox
+
+			InputBox.FocusLost:Connect(function(enterPressed)
+				if Settings.Callback then
+					pcall(Settings.Callback, InputBox.Text)
+				end
+			end)
+
+			return Container
+		end
+
+		function Tab:CreateSlider(Settings)
+			local Container = Instance.new("Frame")
+			Container.Size = UDim2.new(1, 0, 0, 60)
+			Container.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+			Container.BorderSizePixel = 0
+			Container.Parent = TabContent
+
+			local ContainerCorner = Instance.new("UICorner")
+			ContainerCorner.CornerRadius = UDim.new(0, 6)
+			ContainerCorner.Parent = Container
+
+			local Label = Instance.new("TextLabel")
+			Label.Size = UDim2.new(1, -20, 0, 20)
+			Label.Position = UDim2.new(0, 10, 0, 5)
+			Label.BackgroundTransparency = 1
+			Label.Text = Settings.Name or "Slider"
+			Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+			Label.Font = Enum.Font.SourceSans
+			Label.TextSize = 12
+			Label.TextXAlignment = Enum.TextXAlignment.Left
+			Label.Parent = Container
+
+			local SliderTrack = Instance.new("Frame")
+			SliderTrack.Size = UDim2.new(1, -40, 0, 10)
+			SliderTrack.Position = UDim2.new(0, 20, 0, 35)
+			SliderTrack.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+			SliderTrack.BorderSizePixel = 0
+			SliderTrack.Parent = Container
+
+			local TrackCorner = Instance.new("UICorner")
+			TrackCorner.CornerRadius = UDim.new(0.5, 0)
+			TrackCorner.Parent = SliderTrack
+
+			local SliderFill = Instance.new("Frame")
+			SliderFill.Size = UDim2.new(0.5, 0, 1, 0)
+			SliderFill.Position = UDim2.new(0, 0, 0, 0)
+			SliderFill.BackgroundColor3 = Color3.fromRGB(60, 120, 180)
+			SliderFill.BorderSizePixel = 0
+			SliderFill.Parent = SliderTrack
+
+			local FillCorner = Instance.new("UICorner")
+			FillCorner.CornerRadius = UDim.new(0.5, 0)
+			FillCorner.Parent = SliderFill
+
+			local SliderButton = Instance.new("TextButton")
+			SliderButton.Size = UDim2.new(0, 20, 0, 20)
+			SliderButton.Position = UDim2.new(0.5, -10, 0.5, -10)
+			SliderButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			SliderButton.BorderSizePixel = 0
+			SliderButton.Text = ""
+			SliderButton.Parent = SliderTrack
+
+			local ButtonCorner = Instance.new("UICorner")
+			ButtonCorner.CornerRadius = UDim.new(0.5, 0)
+			ButtonCorner.Parent = SliderButton
+
+			local ValueLabel = Instance.new("TextLabel")
+			ValueLabel.Size = UDim2.new(0, 60, 0, 20)
+			ValueLabel.Position = UDim2.new(1, -60, 0, 5)
+			ValueLabel.BackgroundTransparency = 1
+			ValueLabel.Text = tostring(Settings.CurrentValue or Settings.Range[1])
+			ValueLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+			ValueLabel.Font = Enum.Font.SourceSans
+			ValueLabel.TextSize = 12
+			ValueLabel.TextXAlignment = Enum.TextXAlignment.Right
+			ValueLabel.Parent = Container
+
+			return Container
+		end
+
+		return Tab
+	end
+
+	return Window
+end
+
+print("XSAN: Simple UI library created successfully!")
 -- Rayfield UI Library (Fixed Version for Tab Distribution)
 local cloneref = cloneref or function(obj) return obj end
 
@@ -710,85 +1192,17 @@ function Rayfield:CreateWindow(Settings)
 		end
 	end
 
-	return Window
-end
+print("XSAN: Simple UI library created successfully!")
 
-return Rayfield
-]])()
-
-    if Rayfield then
-        loadSuccess = true
-        print("XSAN: Embedded UI library loaded successfully!")
-    end
-end)
-
-if not Rayfield or not loadSuccess then
-    warn("XSAN ERROR: Failed to load embedded UI library")
-    
-    -- Create a simple fallback notification
-    local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "XSAN_ErrorUI"
-    ScreenGui.ResetOnSpawn = false
-    
-    local success = pcall(function()
-        ScreenGui.Parent = game.CoreGui
-    end)
-    if not success then
-        ScreenGui.Parent = game.Players.LocalPlayer.PlayerGui
-    end
-    
-    local Frame = Instance.new("Frame")
-    Frame.Size = UDim2.new(0, 400, 0, 200)
-    Frame.Position = UDim2.new(0.5, -200, 0.5, -100)
-    Frame.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-    Frame.Parent = ScreenGui
-    
-    local Corner = Instance.new("UICorner")
-    Corner.CornerRadius = UDim.new(0, 10)
-    Corner.Parent = Frame
-    
-    local Text = Instance.new("TextLabel")
-    Text.Size = UDim2.new(1, -20, 1, -20)
-    Text.Position = UDim2.new(0, 10, 0, 10)
-    Text.BackgroundTransparency = 1
-    Text.Text = "❌ XSAN Fish It Pro Ultimate\n\nERROR: UI Library failed to load!\n\nPlease:\n1. Check your executor supports loadstring\n2. Ensure stable internet connection\n3. Try running the script again\n\nContact: @_bangicoo"
-    Text.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Text.TextScaled = true
-    Text.Font = Enum.Font.SourceSansBold
-    Text.Parent = Frame
-    
+if not Rayfield then
+    warn("XSAN ERROR: Failed to create UI library")
     return
 end
--- Rayfield UI Library (Fixed Version for Tab Distribution)
-local cloneref = cloneref or function(obj) return obj end
 
-local function getService(name)
-	local service = game:GetService(name)
-	return cloneref and cloneref(service) or service
-end
+print("XSAN: Modern UI library loaded successfully!")
 
--- Services
-local TweenService = getService("TweenService")
-local UserInputService = getService("UserInputService")
-local GuiService = getService("GuiService")
-local RunService = getService("RunService")
-local Players = getService("Players")
-local CoreGui = getService("CoreGui")
+-- Mobile/Android detection
 
--- Variables
-local Player = Players.LocalPlayer
-local PlayerGui = Player:WaitForChild("PlayerGui")
-
--- Create main ScreenGui with proper Z-Index
-local RayfieldLibrary = Instance.new("ScreenGui")
-RayfieldLibrary.Name = "RayfieldLibrary"
-RayfieldLibrary.ResetOnSpawn = false
-RayfieldLibrary.IgnoreGuiInset = true
-RayfieldLibrary.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-RayfieldLibrary.DisplayOrder = 10
-RayfieldLibrary.Parent = PlayerGui
-
--- Variables for scaling and themes
 local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 local screenSize = workspace.CurrentCamera.ViewportSize
 

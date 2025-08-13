@@ -737,16 +737,16 @@ else
     -- Fallback to hardcoded coordinates if workspace folder not found
     print("XSAN: Island folder not found, using updated fallback coordinates")
     TeleportLocations.Islands = {
-        -- Updated island coordinates from detector
-        ["Kohana Volcano"] = CFrame.new(-594.97, 396.65, 149.11),
-        ["Crater Island"] = CFrame.new(1010.01, 252.00, 5078.45),
-        ["Kohana"] = CFrame.new(-650.97, 208.69, 711.11),
-        ["Lost Isle"] = CFrame.new(-3618.16, 240.84, -1317.46),
-        ["Stingray Shores"] = CFrame.new(45.28, 252.56, 2987.11),
-        ["Esoteric Depths"] = CFrame.new(1944.78, 393.56, 1371.36),
-        ["Weather Machine"] = CFrame.new(-1488.51, 83.17, 1876.30),
-        ["Tropical Grove"] = CFrame.new(-2095.34, 197.20, 3718.08),
-        ["Coral Reefs"] = CFrame.new(-3023.97, 337.81, 2195.61),
+        -- Updated island coordinates from detector (Latest 2025)
+        ["Kohana Volcano"] = CFrame.new(-594.971252, 396.65213, 149.10907),
+        ["Crater Island"] = CFrame.new(1010.01001, 252, 5078.45117),
+        ["Kohana"] = CFrame.new(-650.971191, 208.693695, 711.10907),
+        ["Lost Isle"] = CFrame.new(-3618.15698, 240.836655, -1317.45801),
+        ["Stingray Shores"] = CFrame.new(45.2788086, 252.562927, 2987.10913),
+        ["Esoteric Depths"] = CFrame.new(1944.77881, 393.562927, 1371.35913),
+        ["Weather Machine"] = CFrame.new(-1488.51196, 83.1732635, 1876.30298),
+        ["Tropical Grove"] = CFrame.new(-2095.34106, 197.199997, 3718.08008),
+        ["Coral Reefs"] = CFrame.new(-3023.97119, 337.812927, 2195.60913),
         -- Legacy coordinates (backup)
         ["Moosewood"] = CFrame.new(389, 137, 264),
         ["Ocean"] = CFrame.new(1082, 124, -924),
@@ -768,11 +768,15 @@ end
 
 -- NPCs and Events (keeping some hardcoded for important locations)
 TeleportLocations.NPCs = {
-    ["🛒 Shop (Alex)"] = CFrame.new(-28.43, 4.50, 2891.28),
-    ["🛒 Shop (Joe)"] = CFrame.new(112.01, 4.75, 2877.32),
-    ["🛒 Shop (Seth)"] = CFrame.new(72.02, 4.58, 2885.28),
+    ["🛒 Shop (Alex)"] = CFrame.new(-31.1000938, 4.83749962, 2899.03467),
+    ["🛒 Shop (Joe)"] = CFrame.new(114.387497, 4.75, 2882.375),
+    ["🛒 Shop (Seth)"] = CFrame.new(70.9577866, 4.83749866, 2895.35791),
+    ["⚓ Boat Expert"] = CFrame.new(23.3880005, 4.69999981, 2804.15894),
+    ["🔬 Scientist"] = CFrame.new(-8.64041519, 4.5, 2849.56982),
+    ["🐟 Billy Bob"] = CFrame.new(72.0547256, 30.5000019, 2950.63428),
+    ["🎣 Silly Fisherman"] = CFrame.new(93.5334473, 27.2446995, 3009.07666),
+    ["🐧 Scott"] = CFrame.new(-81.9389648, 4.79999971, 2866.58545),
     ["🎣 Rod Shop (Marc)"] = CFrame.new(454, 150, 229),
-    ["⚓ Shipwright"] = CFrame.new(343, 135, 271),
     ["📦 Storage (Henry)"] = CFrame.new(491, 150, 272),
     ["🏆 Angler"] = CFrame.new(484, 150, 331)
 }
